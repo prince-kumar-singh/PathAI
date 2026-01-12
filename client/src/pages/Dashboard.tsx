@@ -322,6 +322,55 @@ const Dashboard: React.FC = () => {
                             </div>
                         )}
                     </div>
+
+                    {/* Phase 2 CTA - Show only when all Phase 1 tests complete */}
+                    {data?.careerPrediction && data?.bigFive && data?.riasec && (
+                        <div className="md:col-span-2 mt-6 relative overflow-hidden rounded-3xl p-8 
+                            bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white
+                            shadow-[0_20px_60px_-15px_rgba(99,102,241,0.5)]
+                            hover:shadow-[0_25px_70px_-15px_rgba(99,102,241,0.7)]
+                            transition-all duration-500 ease-out
+                            group">
+
+                            {/* Decorative Background Elements */}
+                            <div className="absolute -top-20 -right-20 w-60 h-60 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all duration-500"></div>
+                            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all duration-500"></div>
+
+                            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+                                <div className="flex-1 text-center md:text-left">
+                                    <div className="flex items-center gap-3 mb-3 justify-center md:justify-start">
+                                        <span className="text-4xl">🚀</span>
+                                        <h2 className="text-3xl md:text-4xl font-black">
+                                            Ready for Phase 2?
+                                        </h2>
+                                    </div>
+                                    <p className="text-white/90 text-lg md:text-xl mb-2">
+                                        Start your personalized 10-day learning roadmap for
+                                    </p>
+                                    <p className="text-2xl md:text-3xl font-bold text-yellow-300">
+                                        {data.careerPrediction.recommended_career}
+                                    </p>
+                                    <p className="text-white/80 text-sm mt-2">
+                                        ✓ AI-generated daily tasks  ✓ Video tutorials  ✓ Hands-on projects
+                                    </p>
+                                </div>
+                                <div className="flex flex-col gap-3">
+                                    <button
+                                        onClick={() => navigate('/onboarding')}
+                                        className="px-8 py-4 bg-white text-indigo-600 font-bold text-lg rounded-xl 
+                                            hover:scale-105 hover:shadow-2xl
+                                            transition-all duration-300 active:scale-95
+                                            flex items-center gap-2">
+                                        <span>Start Learning Path</span>
+                                        <span className="text-2xl">→</span>
+                                    </button>
+                                    <p className="text-white/70 text-xs text-center">
+                                        Takes 2 minutes to set up
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

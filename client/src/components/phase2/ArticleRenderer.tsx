@@ -1,0 +1,1 @@
+// Article renderer component

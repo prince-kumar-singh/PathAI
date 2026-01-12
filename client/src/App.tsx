@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import BigFiveTest from "./pages/BigFiveTest";
 import RiasecTest from "./pages/RiasecTest";
 import ReadingComprehensionTest from "./pages/ReadingComprehensionTest";
+import OnboardingFlow from "./pages/phase2/OnboardingFlow";
 import { ThemeProvider } from "./context/ThemeContext";
 import Navbar from "./pages/homepage/Navbar";
 
@@ -14,7 +15,7 @@ function AppLayout() {
   const location = useLocation();
 
   // ❌ Routes where Navbar should be hidden
-  const hideNavbarRoutes = ["/big-five-test", "/riasec-test", "/reading-comprehension-test"];
+  const hideNavbarRoutes = ["/big-five-test", "/riasec-test", "/reading-comprehension-test", "/onboarding"];
 
   const hideNavbar = hideNavbarRoutes.includes(location.pathname);
 
@@ -33,6 +34,9 @@ function AppLayout() {
         <Route path="/big-five-test" element={<BigFiveTest />} />
         <Route path="/riasec-test" element={<RiasecTest />} />
         <Route path="/reading-comprehension-test" element={<ReadingComprehensionTest />} />
+
+        {/* 🚀 Phase 2 Routes */}
+        <Route path="/onboarding" element={<OnboardingFlow />} />
       </Routes>
     </>
   );

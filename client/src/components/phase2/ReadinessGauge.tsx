@@ -1,0 +1,1 @@
+// Readiness gauge component

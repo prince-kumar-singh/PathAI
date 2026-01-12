@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+.dark {
+  --background: #0f172a; /* Slate 900 */
+  --foreground: #ededed;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn { animation: fadeIn 0.8s ease forwards; }
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-scaleUp { animation: scaleUp 0.5s ease forwards; }
+
+/* Flip card styles moved from Card.css - global so components don't need local imports */
+.ascend-flip-card {
+  perspective: 1000px;
+  -webkit-perspective: 1000px;
+  cursor: pointer;
+}
+
+.ascend-flip-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(.2,.9,.2,1);
+  will-change: transform;
+}
+
+/* Flip on hover (desktop) or when class `is-flipped` is present */
+.ascend-flip-card:hover .ascend-flip-card-inner,
+.ascend-flip-card-inner.is-flipped,
+.ascend-flip-card:focus-within .ascend-flip-card-inner {
+  transform: rotateY(180deg);
+}
+
+.ascend-flip-card-face {
+  position: relative;
+  width: 100%;
+  min-height: 220px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 0.75rem;
+}
+
+.ascend-flip-card-front {
+  transform: rotateY(0deg);
+}
+
+.ascend-flip-card-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotateY(180deg);
+}
+
+/* Subtle hover lift + shadow for the whole card */
+.ascend-flip-card:hover {
+  transform: translateY(-8px);
+}
+
+/* Improve tap targets on mobile */
+.ascend-flip-card .ascend-flip-card-face button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Small screens: keep height flexible */
+@media (max-width: 640px) {
+  .ascend-flip-card-face {
+    min-height: 200px;
+  }
+}
+
+/* Small helper animation for hero floating blobs */
+@keyframes floatY {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+  100% { transform: translateY(0px); }
+}
+.animate-float { animation: floatY 6s ease-in-out infinite; }
+.animation-delay-2000 { animation-delay: 2s; }

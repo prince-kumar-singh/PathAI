@@ -76,7 +76,7 @@ app.post("/api/score", async (req, res) => {
     console.error("Backend Error:", error);
     res.status(500).json({ error: "Big Five API forwarding failed" });
   }
-}); ī
+}); 
 
 // -------------------------------------------------------------------
 // 📌 RIASEC API Proxy Route

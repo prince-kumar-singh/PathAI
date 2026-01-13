@@ -125,13 +125,24 @@ const Dashboard: React.FC = () => {
                                     </div>
                                 ))}
 
-                                <div className="pt-6 flex justify-center">
+                                <div className="pt-6 flex flex-col gap-3">
+                                    <button
+                                        onClick={() => navigate("/riasec-results", { state: { scores: data.riasec } })}
+                                        className="w-full px-6 py-3 text-lg font-bold text-white rounded-xl 
+                                                bg-gradient-to-r from-blue-600 to-cyan-500 
+                                                shadow-[0_4px_14px_rgba(37,99,235,0.4)]
+                                                hover:shadow-[0_6px_20px_rgba(37,99,235,0.6)]
+                                                hover:-translate-y-1 transition-all"
+                                    >
+                                        View Full Results
+                                    </button>
+
                                     <button
                                         onClick={() => {
                                             localStorage.removeItem("mcq_progress_RIASEC");
                                             navigate("/riasec-test");
                                         }}
-                                        className="px-6 py-2 text-sm font-bold text-blue-600 dark:text-blue-300 bg-blue-100/50 dark:bg-blue-900/30 hover:bg-blue-200/80 dark:hover:bg-blue-800/50 rounded-xl transition-colors duration-300 flex items-center gap-2"
+                                        className="w-full px-6 py-2 text-sm font-bold text-blue-600 dark:text-blue-300 bg-blue-100/50 dark:bg-blue-900/30 hover:bg-blue-200/80 dark:hover:bg-blue-800/50 rounded-xl transition-colors flex items-center justify-center gap-2"
                                     >
                                         <span>↺</span> Retake Test
                                     </button>
@@ -212,13 +223,24 @@ const Dashboard: React.FC = () => {
                                     </div>
                                 ))}
 
-                                <div className="pt-6 flex justify-center">
+                                <div className="pt-6 flex flex-col gap-3">
+                                    <button
+                                        onClick={() => navigate("/big-five-results", { state: { scores: data.bigFive } })}
+                                        className="w-full px-6 py-3 text-lg font-bold text-white rounded-xl 
+                                                bg-gradient-to-r from-green-600 to-emerald-500 
+                                                shadow-[0_4px_14px_rgba(16,185,129,0.4)]
+                                                hover:shadow-[0_6px_20px_rgba(16,185,129,0.6)]
+                                                hover:-translate-y-1 transition-all"
+                                    >
+                                        View Full Results
+                                    </button>
+
                                     <button
                                         onClick={() => {
                                             localStorage.removeItem("mcq_progress_BIG_FIVE");
                                             navigate("/big-five-test");
                                         }}
-                                        className="px-6 py-2 text-sm font-bold text-green-600 dark:text-green-300 bg-green-100/50 dark:bg-green-900/30 hover:bg-green-200/80 dark:hover:bg-green-800/50 rounded-xl transition-colors duration-300 flex items-center gap-2"
+                                        className="w-full px-6 py-2 text-sm font-bold text-green-600 dark:text-green-300 bg-green-100/50 dark:bg-green-900/30 hover:bg-green-200/80 dark:hover:bg-green-800/50 rounded-xl transition-colors flex items-center justify-center gap-2"
                                     >
                                         <span>↺</span> Retake Test
                                     </button>

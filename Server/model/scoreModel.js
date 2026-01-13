@@ -6,18 +6,43 @@ const scoreSchema = new mongoose.Schema(
     fullname: { type: String },
 
     bigFive: {
-      type: Object,
-      default: {},
+      E_score: { type: Number, min: 0, max: 1, default: null },
+      N_score: { type: Number, min: 0, max: 1, default: null },
+      A_score: { type: Number, min: 0, max: 1, default: null },
+      C_score: { type: Number, min: 0, max: 1, default: null },
+      O_score: { type: Number, min: 0, max: 1, default: null }
     },
 
     riasec: {
-      type: Object,
-      default: {},
+      R: { type: Number, min: 0, max: 1, default: null },          // Realistic
+      I: { type: Number, min: 0, max: 1, default: null },          // Investigative
+      A: { type: Number, min: 0, max: 1, default: null },          // Artistic
+      S: { type: Number, min: 0, max: 1, default: null },          // Social
+      E: { type: Number, min: 0, max: 1, default: null },          // Enterprising
+      C: { type: Number, min: 0, max: 1, default: null },          // Conventional
+      holland_code: { type: String, maxlength: 3, default: null }  // 3-letter code
     },
 
     careerPrediction: {
-      type: Object,
-      default: {},
+      recommended_career: { type: String, default: null },
+      all_jobs_confidences: {
+        type: Map,
+        of: Number,
+        default: new Map()
+      },
+      breakdown: {
+        personality_model: {
+          type: Map,
+          of: Number,
+          default: new Map()
+        },
+        reading_model: {
+          type: Map,
+          of: Number,
+          default: new Map()
+        }
+      },
+      timestamp: { type: Date, default: Date.now }
     }
   },
   { timestamps: true }

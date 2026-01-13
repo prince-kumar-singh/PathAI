@@ -6,30 +6,86 @@ import RiasecResult from "../components/RiascResult";
 import type { Answer } from "../types/mcq";
 
 const RiasecTest: React.FC = () => {
-  const [result, setResult] = useState<Record<string, number> | null>(null);
+  const [result, setResult] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  // Get API base URL from environment variable
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
   const handleFinish = async (answers: Answer[]) => {
-    const responses: Record<string, number> = {};
-    answers.forEach((a) => (responses[a.id] = a.answer));
+    try {
+      setLoading(true);
+      setError(null);
 
-    const res = await fetch("http://localhost:8000/api/riasec-score", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(responses),
-    });
+      // 🔹 Build responses object
+      const responses: Record<string, number> = {};
+      answers.forEach((a) => (responses[a.id] = a.answer));
 
-    const data = await res.json();
-    console.log("RIASEC API Response Data:", data);
+      // 🔹 Validate all questions have answers (1-5)
+      const invalidAnswers = answers.filter(a => !a.answer || a.answer < 1 || a.answer > 5);
+      if (invalidAnswers.length > 0) {
+        setError(`Some questions have invalid answers. Please review your responses.`);
+        setLoading(false);
+        return;
+      }
 
-    // ❌ Removed holland_code
-    // Only store scores
-    setResult(data.scores);
+      console.log("Submitting RIASEC responses:", { count: answers.length, responses });
+
+      // 🔹 Call backend API
+      const res = await fetch(`${API_BASE_URL}/api/riasec-score`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(responses),
+      });
+
+      const data = await res.json();
+
+      // 🔹 Handle API errors
+      if (!res.ok) {
+        const errorMessage = data.message || data.error || "Failed to calculate scores";
+        console.error("RIASEC API Error:", data);
+        setError(errorMessage);
+        setLoading(false);
+        return;
+      }
+
+      // 🔹 Validate response structure
+      if (!data.scores || typeof data.scores !== 'object') {
+        setError("Received invalid response from server. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      console.log("RIASEC API Response:", data);
+
+      // 🔹 Success - show results (scores + holland_code)
+      setResult(data);
+      setLoading(false);
+
+    } catch (err) {
+      console.error("RIASEC Test Error:", err);
+      setError(
+        err instanceof Error
+          ? `Network error: ${err.message}`
+          : "An unexpected error occurred. Please check your connection and try again."
+      );
+      setLoading(false);
+    }
   };
 
-  // ❌ Removed holland_code from result display
-  if (result) return <RiasecResult scores={result} />;
+  // 🔹 Reset test and clear localStorage
+  const handleReset = () => {
+    if (confirm("Are you sure you want to restart the test? All progress will be lost.")) {
+      localStorage.removeItem("mcq_progress_RIASEC");
+      window.location.reload();
+    }
+  };
+
+  // If test completed → show results
+  if (result) return <RiasecResult scores={result.scores} hollandCode={result.holland_code} />;
 
   return (
     <div
@@ -38,12 +94,21 @@ const RiasecTest: React.FC = () => {
       dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-500"
     >
       {/* Back Button */}
-      <div className="w-full max-w-6xl flex justify-start mt-4">
+      <div className="w-full max-w-6xl flex justify-between items-center mt-4">
         <button
           onClick={() => navigate("/dashboard")}
-          className="flex items-center gap-2 px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-semibold transition-colors bg-white/50 dark:bg-gray-800/50 rounded-full hover:bg-white/80 dark:hover:bg-gray-700/80 backdrop-blur-sm"
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-semibold transition-colors bg-white/50 dark:bg-gray-800/50 rounded-full hover:bg-white/80 dark:hover:bg-gray-700/80 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span>←</span> Back to Dashboard
+        </button>
+
+        <button
+          onClick={handleReset}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-semibold transition-colors bg-orange-50 dark:bg-orange-900/20 rounded-full hover:bg-orange-100 dark:hover:bg-orange-900/40 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          🔄 Reset Test
         </button>
       </div>
 
@@ -67,6 +132,40 @@ const RiasecTest: React.FC = () => {
           <span className="font-bold text-green-700 dark:text-green-400"> Conventional</span>.
         </p>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="w-full max-w-3xl mt-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-700 rounded-xl animate-fadeIn">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">⚠️</span>
+            <div className="flex-1">
+              <h3 className="font-bold text-red-800 dark:text-red-300 mb-1">Error</h3>
+              <p className="text-red-700 dark:text-red-400">{error}</p>
+              <button
+                onClick={() => setError(null)}
+                className="mt-2 text-sm text-red-600 dark:text-red-400 hover:underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl text-center">
+            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">
+              Calculating Your Career Profile...
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              Analyzing your responses using Holland's RIASEC model
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* MCQ Component */}
       <div className="w-full flex justify-center mt-8 mb-4">

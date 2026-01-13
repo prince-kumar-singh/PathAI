@@ -43,17 +43,15 @@ const MCQEngine: React.FC<Props> = ({ mcqs, phase, onFinish }) => {
   });
 
   const [selected, setSelected] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
 
   // 2️⃣ Save progress to LocalStorage whenever state changes
   useEffect(() => {
-    if (loading) return; // 🛑 Don't save if submitting/loading
     console.log(`[MCQEngine] Saving progress for ${phase}:`, index, answers);
     localStorage.setItem(
       `mcq_progress_${phase}`,
       JSON.stringify({ index, answers })
     );
-  }, [index, answers, phase, loading]);
+  }, [index, answers, phase]);
 
   const current = mcqs[index];
 
@@ -93,41 +91,45 @@ const MCQEngine: React.FC<Props> = ({ mcqs, phase, onFinish }) => {
   };
 
   const handleSubmit = () => {
-    if (loading) return;
-    if (selected !== null) saveAnswer(selected);
+    // Get the updated answers array (includes the current selection)
+    let finalAnswers = answers;
+    if (selected !== null) {
+      finalAnswers = saveAnswer(selected);
+    }
 
-    setLoading(true);
+    // 🔹 Don't submit if not all questions answered
+    if (finalAnswers.length < mcqs.length) {
+      alert(`Please answer all ${mcqs.length} questions. You've answered ${finalAnswers.length}.`);
+      return;
+    }
 
-    // 3️⃣ Clear progress on finish
+    // Clear progress on finish
     localStorage.removeItem(`mcq_progress_${phase}`);
 
-    setTimeout(() => {
-      onFinish(answers);
-    }, 300);
+    // Call onFinish immediately - parent component handles loading state
+    onFinish(finalAnswers);
   };
+
+  // Calculate progress
+  const answeredCount = answers.length;
+  const allAnswered = answeredCount === mcqs.length;
 
   return (
     <div className="relative min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-[#e3f2fd] via-[#eefdf3] to-[#e7edff] dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 transition-colors duration-500">
-
-      {/* 🔵 LOADING OVERLAY */}
-      {loading && (
-        <div className="absolute inset-0 bg-white/50 dark:bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-50 animate-fadeIn">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-6 text-blue-800 dark:text-blue-300 text-xl font-bold animate-pulse">Analyzing your responses...</p>
-        </div>
-      )}
 
       {/* Background blur circles */}
       <div className="absolute left-10 top-20 w-96 h-96 bg-blue-300/20 dark:bg-blue-500/10 rounded-full blur-3xl pointer-events-none animate-float" />
       <div className="absolute right-10 bottom-20 w-96 h-96 bg-green-300/20 dark:bg-green-500/10 rounded-full blur-3xl pointer-events-none animate-float animation-delay-2000" />
 
-      <div className={`w-full max-w-3xl z-10 transition-opacity duration-300 ${loading ? "opacity-0" : "opacity-100"}`}>
+      <div className="w-full max-w-3xl z-10">
 
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex justify-between text-sm font-bold text-gray-600 dark:text-gray-400 mb-2 px-1">
             <span>Question {index + 1}</span>
-            <span>{mcqs.length}</span>
+            <span className={answeredCount < mcqs.length ? "text-orange-600 dark:text-orange-400" : "text-green-600 dark:text-green-400"}>
+              {answeredCount}/{mcqs.length} answered
+            </span>
           </div>
 
           <div className="h-3 bg-white/50 dark:bg-gray-700/50 rounded-full overflow-hidden shadow-inner border border-white/60 dark:border-gray-600/60">
@@ -189,18 +191,29 @@ const MCQEngine: React.FC<Props> = ({ mcqs, phase, onFinish }) => {
 
           {/* Submit Button */}
           {index + 1 === mcqs.length && (
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="w-full mt-10 py-4 rounded-2xl font-bold text-lg tracking-wide
-              bg-gradient-to-r from-green-500 to-emerald-600 text-white 
-              shadow-lg shadow-green-500/30 
-              hover:shadow-green-500/50 hover:scale-[1.02] hover:-translate-y-1
-              active:scale-[0.98]
-              transition-all duration-300 ease-out"
-            >
-              {loading ? "Submitting..." : "Complete Assessment"}
-            </button>
+            <div>
+              {!allAnswered && (
+                <div className="mt-6 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-300 dark:border-orange-700 rounded-xl">
+                  <p className="text-sm text-orange-800 dark:text-orange-300 text-center">
+                    ⚠️ Please answer all {mcqs.length} questions before submitting.
+                    <span className="font-bold"> {answeredCount}/{mcqs.length} completed</span>
+                  </p>
+                </div>
+              )}
+
+              <button
+                onClick={handleSubmit}
+                disabled={!allAnswered}
+                className={`w-full mt-6 py-4 rounded-2xl font-bold text-lg tracking-wide
+                transition-all duration-300 ease-out
+                ${allAnswered
+                    ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/30 hover:shadow-green-500/50 hover:scale-[1.02] hover:-translate-y-1 active:scale-[0.98]"
+                    : "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed"
+                  }`}
+              >
+                {allAnswered ? "Complete Assessment ✓" : `Answer All Questions (${answeredCount}/${mcqs.length})`}
+              </button>
+            </div>
           )}
         </div>
       </div>

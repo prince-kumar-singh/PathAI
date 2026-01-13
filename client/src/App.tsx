@@ -4,7 +4,9 @@ import LoginPage from "./pages/Login";
 import SignupPage from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import BigFiveTest from "./pages/BigFiveTest";
+import BigFiveResultsPage from "./pages/BigFiveResultsPage";
 import RiasecTest from "./pages/RiasecTest";
+import RiasecResultsPage from "./pages/RiasecResultsPage";
 import ReadingComprehensionTest from "./pages/ReadingComprehensionTest";
 import OnboardingFlow from "./pages/phase2/OnboardingFlow";
 import { ThemeProvider } from "./context/ThemeContext";
@@ -32,7 +34,9 @@ function AppLayout() {
 
         {/* 🔥 Test Pages (No Navbar) */}
         <Route path="/big-five-test" element={<BigFiveTest />} />
+        <Route path="/big-five-results" element={<BigFiveResultsPage />} />
         <Route path="/riasec-test" element={<RiasecTest />} />
+        <Route path="/riasec-results" element={<RiasecResultsPage />} />
         <Route path="/reading-comprehension-test" element={<ReadingComprehensionTest />} />
 
         {/* 🚀 Phase 2 Routes */}

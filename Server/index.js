@@ -44,14 +44,89 @@ app.use("/api/v1/roadmaps", roadmapRoute);
 // -------------------------------------------------------------------
 app.post("/api/score", async (req, res) => {
   try {
-    const response = await fetch("https://ocean-scoring-api.onrender.com/score", {
+    // 🔹 Validate request body
+    const { responses } = req.body;
+
+    if (!responses || typeof responses !== 'object') {
+      return res.status(400).json({
+        error: "Invalid request format",
+        message: "Request body must contain 'responses' object"
+      });
+    }
+
+    // 🔹 Validate that all 50 IPIP items are present
+    const requiredKeys = [
+      'EXT1', 'EXT2', 'EXT3', 'EXT4', 'EXT5', 'EXT6', 'EXT7', 'EXT8', 'EXT9', 'EXT10',
+      'EST1', 'EST2', 'EST3', 'EST4', 'EST5', 'EST6', 'EST7', 'EST8', 'EST9', 'EST10',
+      'AGR1', 'AGR2', 'AGR3', 'AGR4', 'AGR5', 'AGR6', 'AGR7', 'AGR8', 'AGR9', 'AGR10',
+      'CSN1', 'CSN2', 'CSN3', 'CSN4', 'CSN5', 'CSN6', 'CSN7', 'CSN8', 'CSN9', 'CSN10',
+      'OPN1', 'OPN2', 'OPN3', 'OPN4', 'OPN5', 'OPN6', 'OPN7', 'OPN8', 'OPN9', 'OPN10'
+    ];
+
+    const missingKeys = requiredKeys.filter(key => !(key in responses));
+    if (missingKeys.length > 0) {
+      return res.status(400).json({
+        error: "Incomplete assessment",
+        message: `Missing responses for ${missingKeys.length} questions`,
+        missingKeys: missingKeys.slice(0, 5) // Show first 5 missing
+      });
+    }
+
+    // 🔹 Validate response values (1-5)
+    const invalidValues = Object.entries(responses).filter(
+      ([key, value]) => typeof value !== 'number' || value < 1 || value > 5
+    );
+
+    if (invalidValues.length > 0) {
+      return res.status(400).json({
+        error: "Invalid response values",
+        message: "All responses must be numbers between 1 and 5",
+        invalidItems: invalidValues.slice(0, 3).map(([key]) => key)
+      });
+    }
+
+    // 🔹 Forward to Big Five Scoring API
+    const apiUrl = process.env.BIG_FIVE_API_URL || "https://ocean-scoring-api.onrender.com/score";
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(req.body),
     });
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Big Five API Error:", response.status, errorText);
+      return res.status(response.status).json({
+        error: "External API error",
+        message: "Failed to calculate personality scores",
+        details: process.env.NODE_ENV === 'development' ? errorText : undefined
+      });
+    }
+
     const data = await response.json();
 
+    // 🔹 Validate API response structure
+    if (!data.scores || typeof data.scores !== 'object') {
+      console.error("Invalid API response structure:", data);
+      return res.status(502).json({
+        error: "Invalid API response",
+        message: "Received invalid response from scoring service"
+      });
+    }
+
+    const { E_score, N_score, A_score, C_score, O_score } = data.scores;
+
+    if ([E_score, N_score, A_score, C_score, O_score].some(score =>
+      typeof score !== 'number' || score < 0 || score > 1
+    )) {
+      console.error("Invalid score values:", data.scores);
+      return res.status(502).json({
+        error: "Invalid scores",
+        message: "Received invalid score values from API"
+      });
+    }
+
+    // 🔹 Save to database (if authenticated)
     const token = req.cookies.session_token;
     if (token) {
       try {
@@ -62,34 +137,123 @@ app.post("/api/score", async (req, res) => {
         if (user) {
           await Score.findOneAndUpdate(
             { userId },
-            { userId, fullname: user.fullname, bigFive: data.scores },
+            {
+              userId,
+              fullname: user.fullname,
+              bigFive: {
+                E_score,
+                N_score,
+                A_score,
+                C_score,
+                O_score
+              }
+            },
             { upsert: true, new: true }
           );
+          console.log(`✅ Big Five scores saved for user: ${user.fullname}`);
         }
       } catch (err) {
         console.warn("Failed to save Big Five score (Invalid Token):", err.message);
+        // Continue - don't block response if save fails
       }
     }
 
     res.json(data);
   } catch (error) {
-    console.error("Backend Error:", error);
-    res.status(500).json({ error: "Big Five API forwarding failed" });
+    console.error("Backend Error (Big Five):", error);
+    res.status(500).json({
+      error: "Internal server error",
+      message: "An unexpected error occurred while processing your request",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
-}); 
+});
 
 // -------------------------------------------------------------------
-// 📌 RIASEC API Proxy Route
+// 📌 RIASEC API Proxy Route (ENHANCED)
 // -------------------------------------------------------------------
 app.post("/api/riasec-score", async (req, res) => {
   try {
-    const response = await fetch("https://riasec-scoring-api.onrender.com/score", {
+    // 🔹 Validate that all 48 RIASEC items are present
+    const requiredKeys = [
+      'R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8',
+      'I1', 'I2', 'I3', 'I4', 'I5', 'I6', 'I7', 'I8',
+      'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8',
+      'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8',
+      'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8',
+      'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8'
+    ];
+
+    const missingKeys = requiredKeys.filter(key => !(key in req.body));
+    if (missingKeys.length > 0) {
+      return res.status(400).json({
+        error: "Incomplete assessment",
+        message: `Missing responses for ${missingKeys.length} questions`,
+        missingKeys: missingKeys.slice(0, 5)
+      });
+    }
+
+    // 🔹 Validate response values (1-5)
+    const invalidValues = Object.entries(req.body).filter(
+      ([key, value]) => typeof value !== 'number' || value < 1 || value > 5
+    );
+
+    if (invalidValues.length > 0) {
+      return res.status(400).json({
+        error: "Invalid response values",
+        message: "All responses must be numbers between 1 and 5",
+        invalidItems: invalidValues.slice(0, 3).map(([key]) => key)
+      });
+    }
+
+    // 🔹 Forward to RIASEC Scoring API
+    const apiUrl = process.env.RIASEC_API_URL || "https://riasec-scoring-api.onrender.com/score";
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(req.body),
     });
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("RIASEC API Error:", response.status, errorText);
+      return res.status(response.status).json({
+        error: "External API error",
+        message: "Failed to calculate RIASEC scores",
+        details: process.env.NODE_ENV === 'development' ? errorText : undefined
+      });
+    }
+
     const data = await response.json();
+
+    // 🔹 Validate API response structure
+    if (!data.scores || typeof data.scores !== 'object') {
+      console.error("Invalid RIASEC API response structure:", data);
+      return res.status(502).json({
+        error: "Invalid API response",
+        message: "Received invalid response from RIASEC scoring service"
+      });
+    }
+
+    const { R, I, A, S, E, C } = data.scores;
+    const { holland_code } = data;
+
+    // 🔹 Validate score values (0-1) and Holland Code
+    if ([R, I, A, S, E, C].some(score =>
+      typeof score !== 'number' || score < 0 || score > 1
+    )) {
+      console.error("Invalid RIASEC score values:", data.scores);
+      return res.status(502).json({
+        error: "Invalid scores",
+        message: "Received invalid RIASEC score values from API"
+      });
+    }
+
+    if (!holland_code || typeof holland_code !== 'string' || holland_code.length !== 3) {
+      console.warn("Invalid Holland Code:", holland_code);
+    }
+
+    // 🔹 Save to database (requires authentication)
     const token = req.cookies.session_token;
     if (!token) return res.status(401).json({ error: "Unauthorized" });
 
@@ -101,16 +265,35 @@ app.post("/api/riasec-score", async (req, res) => {
 
     await Score.findOneAndUpdate(
       { userId },
-      { userId, fullname: user.fullname, riasec: data.scores },
+      {
+        userId,
+        fullname: user.fullname,
+        riasec: {
+          R,
+          I,
+          A,
+          S,
+          E,
+          C,
+          holland_code: holland_code || null
+        }
+      },
       { upsert: true, new: true }
     );
+
+    console.log(`✅ RIASEC scores saved for user: ${user.fullname} (Holland Code: ${holland_code})`);
 
     res.json(data);
   } catch (error) {
     console.error("Backend Error (RIASEC):", error);
-    res.status(500).json({ error: "RIASEC API forwarding failed" });
+    res.status(500).json({
+      error: "Internal server error",
+      message: "An unexpected error occurred while processing your request",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
+
 
 // -------------------------------------------------------------------
 // 📌 Get User Scores Route

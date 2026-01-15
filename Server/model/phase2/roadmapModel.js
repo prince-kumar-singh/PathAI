@@ -30,17 +30,45 @@ const roadmapSchema = new mongoose.Schema({
             description: String,
             type: {
                 type: String,
-                enum: ['video', 'article', 'exercise', 'project']
+                enum: ['video', 'article', 'exercise', 'project'],
+                default: 'article'
             },
             estimated_time_minutes: Number,
-            resources: [{
-                title: String,
-                platform: String,
-                url: String,
-                type: String
-            }]
+            resources: {
+                type: [mongoose.Schema.Types.Mixed],
+                set: function (value) {
+                    // If it's a string, try to parse it
+                    if (typeof value === 'string') {
+                        try {
+                            return JSON.parse(value);
+                        } catch (e) {
+                            console.error('Failed to parse resources string:', e);
+                            return [];
+                        }
+                    }
+                    // If it's already an array, return as-is
+                    if (Array.isArray(value)) {
+                        return value.map(item => {
+                            if (typeof item === 'string') {
+                                try {
+                                    return JSON.parse(item);
+                                } catch {
+                                    return { title: "Invalid resource", platform: "Unknown" };
+                                }
+                            }
+                            return item;
+                        });
+                    }
+                    return [];
+                },
+                default: []
+            }
         }],
-        estimated_time_minutes: Number
+        estimated_time_minutes: Number,
+        completed: {
+            type: Boolean,
+            default: false
+        }
     }],
     status: {
         type: String,

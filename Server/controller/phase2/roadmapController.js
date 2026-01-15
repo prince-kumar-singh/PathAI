@@ -252,21 +252,15 @@ export const getRoadmap = async (req, res) => {
         const decoded = jwt.verify(token, process.env.JWT_SCERET);
         const userId = decoded.id;
 
-        // Fetch from FastAPI service
-        const fastApiUrl = process.env.FASTAPI_URL || "http://localhost:7000";
-        const response = await fetch(`${fastApiUrl}/api/v1/roadmaps/${roadmapId}`, {
-            headers: {
-                "X-User-ID": userId.toString()
-            }
-        });
+        // Fetch from MongoDB (roadmaps are stored here, not in FastAPI)
+        const roadmap = await Roadmap.findOne({ _id: roadmapId, userId });
 
-        if (!response.ok) {
-            return res.status(response.status).json({
+        if (!roadmap) {
+            return res.status(404).json({
                 error: "Roadmap not found"
             });
         }
 
-        const roadmap = await response.json();
         return res.json(roadmap);
 
     } catch (error) {
@@ -305,6 +299,183 @@ export const getPhase1Summary = async (req, res) => {
 
     } catch (error) {
         console.error("Error fetching Phase 1 summary:", error);
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+/**
+ * Mark a day as complete
+ * Updates the day's completion status and advances to next day
+ */
+export const markDayComplete = async (req, res) => {
+    try {
+        const { roadmapId } = req.params;
+        const { dayNumber } = req.body;
+        const token = req.cookies.session_token;
+
+        // 🔍 Enhanced logging for debugging
+        console.log('📍 Mark Day Complete Request:', {
+            roadmapId,
+            dayNumber,
+            dayNumberType: typeof dayNumber,
+            hasToken: !!token,
+            timestamp: new Date().toISOString()
+        });
+
+        // Validate authentication
+        if (!token) {
+            console.log('❌ No authentication token provided');
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        // Validate dayNumber
+        if (dayNumber === undefined || dayNumber === null) {
+            console.log('❌ dayNumber is missing');
+            return res.status(400).json({
+                error: "Invalid request",
+                message: "dayNumber is required"
+            });
+        }
+
+        if (typeof dayNumber !== 'number') {
+            console.log('❌ dayNumber is not a number:', { dayNumber, type: typeof dayNumber });
+            return res.status(400).json({
+                error: "Invalid request",
+                message: "dayNumber must be a number"
+            });
+        }
+
+        // Verify JWT token
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SCERET);
+            console.log('✅ Token verified for user:', decoded.id);
+        } catch (jwtError) {
+            console.error('❌ JWT verification failed:', jwtError.message);
+            return res.status(401).json({
+                error: "Invalid token",
+                message: jwtError.message
+            });
+        }
+
+        const userId = decoded.id;
+
+        // Find the roadmap and verify ownership
+        console.log('🔍 Searching for roadmap:', { roadmapId, userId });
+        const roadmap = await Roadmap.findOne({ _id: roadmapId, userId });
+
+        if (!roadmap) {
+            console.log('❌ Roadmap not found for:', { roadmapId, userId });
+            return res.status(404).json({ error: "Roadmap not found" });
+        }
+
+        console.log('✅ Roadmap found:', {
+            roadmapId: roadmap._id,
+            totalDays: roadmap.days.length,
+            currentDay: roadmap.current_day,
+            status: roadmap.status
+        });
+
+        // Find the day to mark as complete
+        const dayIndex = roadmap.days.findIndex(d => d.day_number === dayNumber);
+
+        if (dayIndex === -1) {
+            console.log('❌ Day not found:', {
+                dayNumber,
+                availableDays: roadmap.days.map(d => d.day_number)
+            });
+            return res.status(404).json({ error: "Day not found" });
+        }
+
+        console.log('✅ Found day at index:', dayIndex, 'Current completed status:', roadmap.days[dayIndex].completed);
+
+        // Mark day as complete
+        roadmap.days[dayIndex].completed = true;
+        console.log(`✅ Marked day ${dayNumber} as complete`);
+
+        // Update current_day to next day if this was the current day
+        if (roadmap.current_day === dayNumber && dayNumber < roadmap.total_days) {
+            roadmap.current_day = dayNumber + 1;
+            console.log(`➡️ Advanced current_day to ${roadmap.current_day}`);
+        }
+
+        // Update status to in_progress if it was just generated
+        if (roadmap.status === "generated") {
+            roadmap.status = "in_progress";
+            console.log('📊 Status updated to in_progress');
+        }
+
+        // Check if all days are complete
+        const allComplete = roadmap.days.every(d => d.completed);
+        if (allComplete) {
+            roadmap.status = "completed";
+            console.log('🎉 All days completed! Status updated to completed');
+        }
+
+        // Save the roadmap
+        console.log('💾 Saving roadmap...');
+        await roadmap.save();
+        console.log('✅ Roadmap saved successfully');
+
+        return res.json({
+            success: true,
+            roadmap: roadmap.toObject()
+        });
+
+    } catch (error) {
+        console.error("❌ Error marking day complete:", error);
+        console.error("Error name:", error.name);
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+
+        return res.status(500).json({
+            error: error.message,
+            errorType: error.name,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
+};
+
+/**
+ * Get all roadmaps for the authenticated user
+ * Used by Dashboard to show user's existing roadmaps
+ */
+export const getUserRoadmaps = async (req, res) => {
+    try {
+        const token = req.cookies.session_token;
+
+        if (!token) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SCERET);
+        const userId = decoded.id;
+
+        console.log('📋 Fetching roadmaps for user:', userId);
+
+        // Get all roadmaps for this user, sorted by newest first
+        const roadmaps = await Roadmap.find({ userId })
+            .sort({ createdAt: -1 })
+            .select('_id career_domain status current_day total_days days createdAt updatedAt');
+
+        console.log(`✅ Found ${roadmaps.length} roadmaps for user`);
+
+        return res.json({
+            success: true,
+            roadmaps: roadmaps.map(r => ({
+                _id: r._id,
+                career_domain: r.career_domain,
+                status: r.status,
+                current_day: r.current_day,
+                total_days: r.total_days,
+                progress: Math.round((r.days.filter(d => d.completed).length / r.total_days) * 100),
+                createdAt: r.createdAt,
+                updatedAt: r.updatedAt
+            }))
+        });
+
+    } catch (error) {
+        console.error("Error fetching user roadmaps:", error);
         return res.status(500).json({ error: error.message });
     }
 };

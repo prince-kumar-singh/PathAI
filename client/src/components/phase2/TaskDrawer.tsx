@@ -1,13 +1,15 @@
 import React from 'react';
-import { X, ExternalLink, BookOpen, Clock, Youtube } from 'lucide-react';
+import { X, ExternalLink, BookOpen, Clock, Youtube, CheckCircle } from 'lucide-react';
 
 interface TaskDrawerProps {
     isOpen: boolean;
     onClose: () => void;
-    data: any; // Using any for flexibility with backend response structure for now
+    data: any;
+    onDayComplete?: (dayNumber: number) => Promise<void>;
+    isLoading?: boolean;
 }
 
-export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, data }) => {
+export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, data, onDayComplete, isLoading = false }) => {
     if (!data) return null;
 
     return (
@@ -70,9 +72,14 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, data })
                                                 <polyline points="20 6 9 17 4 12"></polyline>
                                             </svg>
                                         </div>
-                                        <span className="text-gray-700 group-hover:text-gray-900 peer-checked:line-through peer-checked:text-gray-400 transition-colors">
-                                            {typeof task === 'string' ? task : task.task}
-                                        </span>
+                                        <div className="flex-1">
+                                            <span className="text-gray-700 group-hover:text-gray-900 peer-checked:line-through peer-checked:text-gray-400 transition-colors font-medium">
+                                                {typeof task === 'string' ? task : task.title}
+                                            </span>
+                                            {task.description && (
+                                                <p className="text-sm text-gray-500 mt-1">{task.description}</p>
+                                            )}
+                                        </div>
                                     </label>
                                 ))}
                             </div>
@@ -84,33 +91,44 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, data })
                                 <span className="bg-blue-100 p-1 rounded">📚</span> Recommended Resources
                             </h3>
                             <div className="space-y-3">
-                                {data.resources?.map((res: any, idx: number) => (
-                                    <a
-                                        key={idx}
-                                        href={res.url || '#'}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group"
-                                    >
-                                        <div className="w-10 h-10 rounded-lg bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                                            {res.type === 'video' ? <Youtube size={20} /> : <BookOpen size={20} />}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="font-semibold text-gray-800 truncate group-hover:text-indigo-700">
-                                                {res.title}
-                                            </h4>
-                                            <p className="text-xs text-gray-500 truncate">
-                                                {res.type === 'video' ? 'Video Tutorial' : 'Article / Documentation'}
-                                            </p>
-                                        </div>
-                                        <ExternalLink size={16} className="text-gray-400 group-hover:text-indigo-600" />
-                                    </a>
-                                ))}
-                                {(!data.resources || data.resources.length === 0) && (
-                                    <p className="text-sm text-gray-500 italic p-4 text-center bg-gray-50 rounded-xl">
-                                        Resources will be curated for you soon! 🤖
-                                    </p>
-                                )}
+                                {(() => {
+                                    // Collect all resources from all tasks
+                                    const allResources = data.tasks?.reduce((acc: any[], task: any) => {
+                                        if (task.resources && Array.isArray(task.resources)) {
+                                            return [...acc, ...task.resources];
+                                        }
+                                        return acc;
+                                    }, []) || [];
+
+                                    return allResources.length > 0 ? (
+                                        allResources.map((res: any, idx: number) => (
+                                            <a
+                                                key={idx}
+                                                href={res.url || res.url_hint || '#'}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group"
+                                            >
+                                                <div className="w-10 h-10 rounded-lg bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                                                    {res.platform?.toLowerCase().includes('youtube') || res.platform?.toLowerCase().includes('video') ? <Youtube size={20} /> : <BookOpen size={20} />}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="font-semibold text-gray-800 truncate group-hover:text-indigo-700">
+                                                        {res.title}
+                                                    </h4>
+                                                    <p className="text-xs text-gray-500 truncate">
+                                                        {res.platform || 'Resource'}
+                                                    </p>
+                                                </div>
+                                                <ExternalLink size={16} className="text-gray-400 group-hover:text-indigo-600" />
+                                            </a>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm text-gray-500 italic p-4 text-center bg-gray-50 rounded-xl">
+                                            Resources will be curated for you soon! 🤖
+                                        </p>
+                                    );
+                                })()}
                             </div>
                         </div>
 
@@ -127,9 +145,27 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, data })
 
                     {/* Activity Footer */}
                     <div className="p-6 border-t bg-gray-50">
-                        <button className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-all flex items-center justify-center gap-2">
-                            Mark Day as Complete Check
-                        </button>
+                        {data.completed ? (
+                            <div className="w-full py-4 bg-green-600 text-white rounded-xl font-bold flex items-center justify-center gap-2">
+                                <CheckCircle size={20} />
+                                Day Completed ✓
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => onDayComplete?.(data.day_number)}
+                                disabled={isLoading || !onDayComplete}
+                                className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                        Saving...
+                                    </>
+                                ) : (
+                                    'Mark Day as Complete ✓'
+                                )}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

@@ -9,15 +9,26 @@ interface Scores {
     careerPrediction: any | null;
 }
 
+interface RoadmapSummary {
+    _id: string;
+    career_domain: string;
+    status: 'generated' | 'in_progress' | 'completed';
+    current_day: number;
+    total_days: number;
+    progress: number;
+    createdAt: string;
+}
+
 const Dashboard: React.FC = () => {
     const [data, setData] = useState<Scores | null>(null);
+    const [roadmaps, setRoadmaps] = useState<RoadmapSummary[]>([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
     useEffect(() => {
         const fetchScores = async () => {
             try {
-                const res = await fetch("http://localhost:8000/api/user-scores", {
+                const res = await fetch("/api/user-scores", {
                     credentials: "include",
                 });
 
@@ -37,7 +48,24 @@ const Dashboard: React.FC = () => {
             }
         };
 
+        const fetchRoadmaps = async () => {
+            try {
+                const res = await fetch("/api/v1/roadmaps/user/all", {
+                    credentials: "include",
+                });
+
+                if (res.ok) {
+                    const result = await res.json();
+                    console.log("User roadmaps:", result);
+                    setRoadmaps(result.roadmaps || []);
+                }
+            } catch (error) {
+                console.error("Error fetching roadmaps:", error);
+            }
+        };
+
         fetchScores();
+        fetchRoadmaps();
     }, [navigate]);
 
     const getGreeting = () => {
@@ -345,8 +373,89 @@ const Dashboard: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Phase 2 CTA - Show only when all Phase 1 tests complete */}
-                    {data?.careerPrediction && data?.bigFive && data?.riasec && (
+                    {/* My Roadmaps Section - Show if user has roadmaps */}
+                    {roadmaps.length > 0 && (
+                        <div className="md:col-span-2 mt-6">
+                            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
+                                <span className="text-2xl">📚</span> My Learning Roadmaps
+                            </h2>
+                            <div className="grid gap-4">
+                                {roadmaps.map((roadmap) => (
+                                    <div
+                                        key={roadmap._id}
+                                        className="relative overflow-hidden rounded-2xl p-6 
+                                            bg-gradient-to-r from-white to-indigo-50 
+                                            dark:from-gray-800 dark:to-indigo-900/20
+                                            border-2 border-indigo-200/50 dark:border-indigo-700/30
+                                            shadow-[0_10px_40px_-10px_rgba(99,102,241,0.3)]
+                                            hover:shadow-[0_15px_50px_-10px_rgba(99,102,241,0.5)]
+                                            hover:-translate-y-1
+                                            transition-all duration-300
+                                            cursor-pointer group"
+                                        onClick={() => navigate(`/roadmap/${roadmap._id}/preview`)}
+                                    >
+                                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <span className="text-2xl">🎯</span>
+                                                    <h3 className="text-xl font-bold text-gray-800 dark:text-white capitalize">
+                                                        {roadmap.career_domain?.replace(/_/g, ' ')} Path
+                                                    </h3>
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${roadmap.status === 'completed'
+                                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                                            : roadmap.status === 'in_progress'
+                                                                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+                                                                : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                                                        }`}>
+                                                        {roadmap.status === 'completed' ? '✓ Completed' :
+                                                            roadmap.status === 'in_progress' ? '▶ In Progress' : 'Not Started'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-6 text-gray-600 dark:text-gray-300">
+                                                    <span className="flex items-center gap-1">
+                                                        <span>📅</span> Day {roadmap.current_day} of {roadmap.total_days}
+                                                    </span>
+                                                    <span className="flex items-center gap-1">
+                                                        <span>📊</span> {roadmap.progress}% complete
+                                                    </span>
+                                                </div>
+                                                {/* Progress Bar */}
+                                                <div className="mt-3 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                                                    <div
+                                                        className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2.5 rounded-full transition-all duration-500"
+                                                        style={{ width: `${roadmap.progress}%` }}
+                                                    ></div>
+                                                </div>
+                                            </div>
+                                            <button
+                                                className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold
+                                                    hover:bg-indigo-700 hover:scale-105
+                                                    transition-all duration-300
+                                                    flex items-center gap-2 shadow-lg shadow-indigo-200"
+                                            >
+                                                <span>Continue Learning</span>
+                                                <span className="text-xl">→</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            {/* Option to create new roadmap */}
+                            <button
+                                onClick={() => navigate('/onboarding')}
+                                className="mt-4 w-full py-3 border-2 border-dashed border-indigo-300 dark:border-indigo-600 
+                                    text-indigo-600 dark:text-indigo-400 rounded-xl font-medium
+                                    hover:bg-indigo-50 dark:hover:bg-indigo-900/20
+                                    transition-all duration-300 flex items-center justify-center gap-2"
+                            >
+                                <span className="text-xl">+</span>
+                                Create New Roadmap
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Phase 2 CTA - Show only when all Phase 1 tests complete AND no roadmaps exist */}
+                    {data?.careerPrediction && data?.bigFive && data?.riasec && roadmaps.length === 0 && (
                         <div className="md:col-span-2 mt-6 relative overflow-hidden rounded-3xl p-8 
                             bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white
                             shadow-[0_20px_60px_-15px_rgba(99,102,241,0.5)]

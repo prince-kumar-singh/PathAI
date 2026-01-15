@@ -2,6 +2,97 @@ import jwt from "jsonwebtoken";
 import fetch from "node-fetch";
 import Score from "../../model/scoreModel.js";
 import { mapCareerToDomain } from "../../utils/careerDomainMapping.js";
+import Roadmap from "../../model/phase2/roadmapModel.js";
+
+/**
+ * Sanitize roadmap data to handle stringified JSON and invalid enums
+ * This is a FAILSAFE in case Python sanitization doesn't run
+ */
+function sanitizeRoadmapData(data) {
+    console.log("🛡️  Running Node.js failsafe sanitization...");
+
+    // Enum mapping for task types
+    const taskTypeMap = {
+        'reading': 'article',
+        'coding_exercise': 'exercise',
+        'installation': 'exercise',
+        'account_setup': 'exercise',
+        'planning': 'project',
+        'git_commit_planning': 'project'
+    };
+
+    if (!data.days || !Array.isArray(data.days)) {
+        console.warn("⚠️  No days array found");
+        return data;
+    }
+
+    let fixCount = 0;
+
+    data.days.forEach((day, dayIdx) => {
+        // Parse stringified arrays at day level
+        ['learning_objectives', 'key_topics'].forEach(field => {
+            if (day[field] && typeof day[field] === 'string') {
+                try {
+                    day[field] = JSON.parse(day[field]);
+                    fixCount++;
+                    console.log(`✅ Fixed day ${dayIdx} ${field}`);
+                } catch (e) {
+                    console.error(`❌ Failed to parse day ${dayIdx} ${field}`);
+                    day[field] = [];
+                }
+            }
+        });
+
+        if (!Array.isArray(day.tasks)) return;
+
+        day.tasks.forEach((task, taskIdx) => {
+            // Fix task type enum
+            if (task.type && taskTypeMap[task.type]) {
+                console.log(`🔄 Mapping task type: ${task.type} → ${taskTypeMap[task.type]}`);
+                task.type = taskTypeMap[task.type];
+                fixCount++;
+            }
+
+            // Parse stringified resources
+            if (task.resources) {
+                if (typeof task.resources === 'string') {
+                    try {
+                        task.resources = JSON.parse(task.resources);
+                        fixCount++;
+                        console.log(`✅ Fixed day ${dayIdx} task ${taskIdx} resources`);
+                    } catch (e) {
+                        console.error(`❌ Failed to parse day ${dayIdx} task ${taskIdx} resources`);
+                        task.resources = [];
+                    }
+                }
+
+                // Ensure resources is an array
+                if (!Array.isArray(task.resources)) {
+                    task.resources = [];
+                }
+
+                // Parse stringified resource items
+                task.resources = task.resources.map((res, resIdx) => {
+                    if (typeof res === 'string') {
+                        try {
+                            return JSON.parse(res);
+                        } catch (e) {
+                            console.error(`❌ Failed to parse resource item at day ${dayIdx} task ${taskIdx} res ${resIdx}`);
+                            return { title: "Invalid resource", platform: "Unknown" };
+                        }
+                    }
+                    return res;
+                });
+            } else {
+                task.resources = [];
+            }
+        });
+    });
+
+    console.log(`✅ Failsafe sanitization complete: ${fixCount} fixes applied`);
+    return data;
+}
+
 
 /**
  * Generate personalized roadmap using Phase 1 data + Phase 2 preferences
@@ -61,7 +152,7 @@ export const generateRoadmap = async (req, res) => {
         };
 
         // 6. Call FastAPI AI service
-        const fastApiUrl = process.env.FASTAPI_URL || "http://localhost:8000";
+        const fastApiUrl = process.env.FASTAPI_URL || "http://localhost:7000";
         const response = await fetch(`${fastApiUrl}/api/v1/roadmaps/generate`, {
             method: "POST",
             headers: {
@@ -80,16 +171,60 @@ export const generateRoadmap = async (req, res) => {
             });
         }
 
-        const roadmap = await response.json();
+        const roadmapData = await response.json();
 
-        // 7. Return generated roadmap
+        // Failsafe: Sanitize stringified JSON (LangChain sometimes still returns strings)
+        console.log("✅ Received roadmap from LangChain - sanitizing...");
+
+        const sanitizeRoadmap = (data) => {
+            // Helper to parse stringified JSON
+            const parseIfString = (value) => {
+                if (typeof value === 'string' && (value.trim().startsWith('[') || value.trim().startsWith('{'))) {
+                    try {
+                        return JSON.parse(value);
+                    } catch {
+                        return value;
+                    }
+                }
+                return value;
+            };
+
+            // Sanitize each day
+            if (data.days && Array.isArray(data.days)) {
+                data.days = data.days.map(day => ({
+                    ...day,
+                    learning_objectives: parseIfString(day.learning_objectives),
+                    key_topics: parseIfString(day.key_topics),
+                    tasks: Array.isArray(day.tasks) ? day.tasks.map(task => ({
+                        ...task,
+                        resources: parseIfString(task.resources)
+                    })) : []
+                }));
+            }
+
+            return data;
+        };
+
+        const sanitizedData = sanitizeRoadmap(roadmapData);
+
+        // 7. Save to MongoDB
+        const newRoadmap = new Roadmap({
+            userId,
+            career_domain: sanitizedData.career_domain,
+            skill_level: sanitizedData.skill_level,
+            learning_style: req.body.learning_style,
+            days: sanitizedData.days,
+            status: "generated"
+        });
+
+        await newRoadmap.save();
+
+        // 8. Return saved roadmap (with _id)
         return res.json({
             success: true,
-            roadmap,
-            metadata: {
-                career: recommendedCareer,
-                domain: careerDomain,
-                generated_at: new Date()
+            roadmap: {
+                ...newRoadmap.toObject(),
+                roadmap_id: newRoadmap._id
             }
         });
 
@@ -118,7 +253,7 @@ export const getRoadmap = async (req, res) => {
         const userId = decoded.id;
 
         // Fetch from FastAPI service
-        const fastApiUrl = process.env.FASTAPI_URL || "http://localhost:8000";
+        const fastApiUrl = process.env.FASTAPI_URL || "http://localhost:7000";
         const response = await fetch(`${fastApiUrl}/api/v1/roadmaps/${roadmapId}`, {
             headers: {
                 "X-User-ID": userId.toString()

@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import fetch from "node-fetch";
 import Score from "../../model/scoreModel.js";
-import { mapCareerToDomain } from "../../utils/careerDomainMapping.js";
+import { resolveCareerDomain, CareerResolutionError, mapCareerToDomain } from "../../utils/careerDomainMapping.js";
 import Roadmap from "../../model/phase2/roadmapModel.js";
 
 /**
@@ -126,11 +126,25 @@ export const generateRoadmap = async (req, res) => {
             });
         }
 
-        // 4. Extract career domain from Phase 1
+        // 4. Extract career domain from Phase 1 (STRICT - no fallback)
         const recommendedCareer = scoreDoc.careerPrediction.recommended_career;
-        const careerDomain = mapCareerToDomain(recommendedCareer);
 
-        console.log(`User ${userId}: ${recommendedCareer} → ${careerDomain}`);
+        let careerDomain;
+        try {
+            careerDomain = resolveCareerDomain(recommendedCareer);
+            console.log(`✅ User ${userId}: Career resolved "${recommendedCareer}" → "${careerDomain}"`);
+        } catch (error) {
+            if (error instanceof CareerResolutionError) {
+                console.error(`❌ Career resolution failed for user ${userId}: ${error.message}`);
+                return res.status(400).json({
+                    error: "Invalid career prediction",
+                    message: `Cannot generate roadmap for unknown career: "${recommendedCareer}"`,
+                    hint: "Please complete the career assessment again",
+                    originalCareer: error.originalCareer
+                });
+            }
+            throw error;
+        }
 
         // 5. Combine Phase 1 data + Phase 2 preferences
         const roadmapRequest = {
@@ -289,12 +303,27 @@ export const getPhase1Summary = async (req, res) => {
             return res.status(404).json({ error: "No assessment data found" });
         }
 
+        // Resolve domain with error handling (graceful for summary endpoint)
+        let domain = null;
+        try {
+            if (scoreDoc.careerPrediction?.recommended_career) {
+                domain = resolveCareerDomain(scoreDoc.careerPrediction.recommended_career);
+            }
+        } catch (error) {
+            if (error instanceof CareerResolutionError) {
+                console.warn(`⚠️ Could not resolve domain for summary: ${error.message}`);
+                domain = null;
+            } else {
+                throw error;
+            }
+        }
+
         return res.json({
             recommended_career: scoreDoc.careerPrediction?.recommended_career,
             alternative_careers: scoreDoc.careerPrediction?.alternative_careers,
             confidence: scoreDoc.careerPrediction?.confidence,
             phase1_complete: !!(scoreDoc.careerPrediction && scoreDoc.bigFive && scoreDoc.riasec),
-            domain: mapCareerToDomain(scoreDoc.careerPrediction?.recommended_career)
+            domain
         });
 
     } catch (error) {

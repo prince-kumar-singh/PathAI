@@ -1,123 +1,177 @@
 // Career name to domain mapper for Phase 1 → Phase 2 integration
+// Fixed version with robust normalization and NO silent fallback
 
 /**
- * IMPORTANT: Phase 1 only produces 3 career paths:
- * 1. "software development"
- * 2. "data science and AI"
- * 3. "product management /uX" (or "product management/UX")
- * 
- * This mapper translates Phase 1 career strings to Phase 2 learning domains
+ * CareerDomain Enum - Type-safe domain identifiers
+ * @readonly
+ * @enum {string}
  */
+export const CareerDomain = Object.freeze({
+    SOFTWARE_DEVELOPMENT: "software_development",
+    DATA_SCIENCE_AI: "data_science_ai",
+    PRODUCT_MANAGEMENT_UX: "product_management_ux"
+});
 
 /**
- * Phase 1 Career Paths → Phase 2 Learning Domains
- * Note: Case-insensitive matching is handled in mapCareerToDomain() function
+ * Custom error for career resolution failures
+ * Thrown when a career string cannot be mapped to a valid domain
  */
-export const CAREER_DOMAIN_MAPPING = {
-    "software development": "software_development",
-    "data science and AI": "data_science_ai",
-    "product management /uX": "product_ux",
-};
-
-/**
- * Maps Phase 1 career path to Phase 2 learning domain
- * @param {string} careerName - The exact career string from Phase 1 API
- * @returns {string} The domain identifier for Phase 2
- */
-export function mapCareerToDomain(careerName) {
-    if (!careerName) {
-        console.warn("⚠️ No career name provided, using default domain");
-        return "software_development"; // Default fallback
+export class CareerResolutionError extends Error {
+    constructor(message, originalCareer) {
+        super(message);
+        this.name = 'CareerResolutionError';
+        this.originalCareer = originalCareer;
     }
-
-    // Normalize the career name (trim whitespace)
-    const normalizedCareer = careerName.trim();
-
-    // Try exact match first
-    const domain = CAREER_DOMAIN_MAPPING[normalizedCareer];
-
-    if (domain) {
-        console.log(`✅ Mapped "${normalizedCareer}" → "${domain}"`);
-        return domain;
-    }
-
-    // Try case-insensitive match
-    const lowerCareer = normalizedCareer.toLowerCase();
-    for (const [key, value] of Object.entries(CAREER_DOMAIN_MAPPING)) {
-        if (key.toLowerCase() === lowerCareer) {
-            console.log(`✅ Case-insensitive match: "${normalizedCareer}" → "${value}"`);
-            return value;
-        }
-    }
-
-    // No match found - log warning and return default
-    console.warn(`❌ Career "${normalizedCareer}" not found in mapping!`);
-    console.warn(`   Valid Phase 1 careers: software development, data science and AI, product management /uX`);
-    console.warn(`   Using default domain: software_development`);
-
-    return "software_development"; // Safe fallback
 }
 
 /**
- * Gets all 3 domains available in Phase 2
- * @returns {string[]} Array of the 3 domain identifiers
+ * Normalizes a career string for consistent matching
+ * Handles common variations from upstream APIs:
+ * - "Data Science & AI" → "data_science_and_ai"
+ * - "Project Management / UX" → "project_management_ux"
+ * - "Software Development" → "software_development"
+ * 
+ * @param {string} career - Raw career string from API
+ * @returns {string|null} Normalized string or null if invalid
+ */
+function normalizeCareerString(career) {
+    if (!career || typeof career !== 'string') {
+        return null;
+    }
+
+    return career
+        .toLowerCase()
+        .trim()
+        .replace(/&/g, 'and')        // & → and (fixes "Data Science & AI")
+        .replace(/\//g, ' ')          // / → space (fixes "PM / UX")
+        .replace(/\s+/g, '_')         // spaces → underscore
+        .replace(/_+/g, '_')          // collapse multiple underscores
+        .replace(/^_|_$/g, '');       // trim leading/trailing underscores
+}
+
+/**
+ * Resolves a career string to a CareerDomain enum value
+ * 
+ * IMPORTANT: This function does NOT have a silent fallback.
+ * It throws CareerResolutionError for unknown careers.
+ * 
+ * @param {string} careerString - Career string from upstream API
+ * @returns {string} CareerDomain enum value
+ * @throws {CareerResolutionError} If career cannot be resolved
+ * 
+ * @example
+ * resolveCareerDomain("Data Science & AI") // → "data_science_ai"
+ * resolveCareerDomain("Unknown Career")    // throws CareerResolutionError
+ */
+export function resolveCareerDomain(careerString) {
+    const normalized = normalizeCareerString(careerString);
+
+    if (!normalized) {
+        throw new CareerResolutionError(
+            `Career string is null, undefined, or not a string`,
+            careerString
+        );
+    }
+
+    console.log(`🔍 Resolving career: "${careerString}" → normalized: "${normalized}"`);
+
+    // Pattern matching for Software Development
+    if (normalized.includes('software') && normalized.includes('development')) {
+        console.log(`✅ Resolved to: ${CareerDomain.SOFTWARE_DEVELOPMENT}`);
+        return CareerDomain.SOFTWARE_DEVELOPMENT;
+    }
+
+    // Pattern matching for Data Science & AI
+    if (normalized.includes('data') && (normalized.includes('science') || normalized.includes('ai'))) {
+        console.log(`✅ Resolved to: ${CareerDomain.DATA_SCIENCE_AI}`);
+        return CareerDomain.DATA_SCIENCE_AI;
+    }
+
+    // Pattern matching for Product Management / UX
+    // Matches: "Product Management / UX", "Project Management / UX", "PM/UX", "UX Design"
+    if (
+        (normalized.includes('product') || normalized.includes('project')) &&
+        (normalized.includes('management') || normalized.includes('ux'))
+    ) {
+        console.log(`✅ Resolved to: ${CareerDomain.PRODUCT_MANAGEMENT_UX}`);
+        return CareerDomain.PRODUCT_MANAGEMENT_UX;
+    }
+
+    // Also match standalone UX mentions
+    if (normalized.includes('ux') || normalized.includes('user_experience')) {
+        console.log(`✅ Resolved to: ${CareerDomain.PRODUCT_MANAGEMENT_UX}`);
+        return CareerDomain.PRODUCT_MANAGEMENT_UX;
+    }
+
+    // ❌ NO SILENT FALLBACK - throw explicit error
+    console.error(`❌ Career resolution FAILED for: "${careerString}" (normalized: "${normalized}")`);
+    console.error(`   Valid careers: Data Science & AI, Software Development, Project Management / UX`);
+
+    throw new CareerResolutionError(
+        `Unknown career: "${careerString}" (normalized: "${normalized}"). ` +
+        `Valid careers are: Data Science & AI, Software Development, Project Management / UX`,
+        careerString
+    );
+}
+
+/**
+ * Gets all valid career domains
+ * @returns {string[]} Array of all CareerDomain values
  */
 export function getAllDomains() {
-    return ["software_development", "data_science_ai", "product_ux"];
+    return Object.values(CareerDomain);
 }
 
 /**
- * Gets human-readable name for a domain
- * @param {string} domain - The domain identifier
- * @returns {string} Human-readable domain name
+ * Gets a human-readable display name for a domain
+ * @param {string} domain - CareerDomain value
+ * @returns {string} Human-readable name
  */
 export function getDomainDisplayName(domain) {
     const displayNames = {
-        "software_development": "Software Development",
-        "data_science_ai": "Data Science & AI",
-        "product_ux": "Product Management & UX Design"
+        [CareerDomain.SOFTWARE_DEVELOPMENT]: "Software Development",
+        [CareerDomain.DATA_SCIENCE_AI]: "Data Science & AI",
+        [CareerDomain.PRODUCT_MANAGEMENT_UX]: "Product Management & UX Design"
     };
     return displayNames[domain] || domain;
 }
 
 /**
- * Validates if a career name is one of the 3 Phase 1 outputs
- * @param {string} careerName - The career name to validate
- * @returns {boolean} True if career is valid Phase 1 output
+ * Validates if a career string can be resolved to a valid domain
+ * @param {string} careerString - Career string to validate
+ * @returns {boolean} True if career can be resolved
  */
-export function isValidPhase1Career(careerName) {
-    if (!careerName) return false;
-
-    const normalized = careerName.trim().toLowerCase();
-
-    // Check against the 3 expected Phase 1 outputs
-    return (
-        normalized.includes("software development") ||
-        normalized.includes("data science") ||
-        normalized.includes("product management")
-    );
+export function isValidCareer(careerString) {
+    try {
+        resolveCareerDomain(careerString);
+        return true;
+    } catch (error) {
+        if (error instanceof CareerResolutionError) {
+            return false;
+        }
+        throw error;
+    }
 }
 
 /**
- * Gets the Phase 2 domain breakdown for each Phase 1 career
- * This shows what sub-topics will be covered in the 10-day roadmap
+ * Domain subtopics for roadmap generation
  */
 export const DOMAIN_SUBTOPICS = {
-    "software_development": [
+    [CareerDomain.SOFTWARE_DEVELOPMENT]: [
         "Frontend Development (React, HTML/CSS)",
         "Backend Development (Node.js, APIs)",
         "Databases (SQL, MongoDB)",
         "Version Control (Git)",
         "Testing & Debugging"
     ],
-    "data_science_ai": [
+    [CareerDomain.DATA_SCIENCE_AI]: [
         "Python Programming",
         "Data Analysis (Pandas, NumPy)",
         "Machine Learning (Scikit-learn)",
         "Deep Learning (TensorFlow/PyTorch)",
         "Data Visualization"
     ],
-    "product_ux": [
+    [CareerDomain.PRODUCT_MANAGEMENT_UX]: [
         "User Research & Personas",
         "Wireframing & Prototyping (Figma)",
         "Product Strategy & Roadmapping",
@@ -128,20 +182,67 @@ export const DOMAIN_SUBTOPICS = {
 
 /**
  * Get subtopics for a domain
- * @param {string} domain - The domain identifier
+ * @param {string} domain - CareerDomain value
  * @returns {string[]} Array of subtopics
  */
 export function getDomainSubtopics(domain) {
     return DOMAIN_SUBTOPICS[domain] || [];
 }
 
-// Export for use in other modules
+// ============================================================================
+// DEPRECATED FUNCTIONS - Maintained for backward compatibility
+// ============================================================================
+
+/**
+ * @deprecated Use resolveCareerDomain() instead.
+ * This function has a silent fallback which is an anti-pattern.
+ * 
+ * Maps Phase 1 career path to Phase 2 learning domain
+ * @param {string} careerName - Career string from Phase 1 API
+ * @returns {string} Domain identifier for Phase 2
+ */
+export function mapCareerToDomain(careerName) {
+    try {
+        return resolveCareerDomain(careerName);
+    } catch (error) {
+        if (error instanceof CareerResolutionError) {
+            console.warn(`⚠️ DEPRECATED mapCareerToDomain() used with failed resolution`);
+            console.warn(`   Error: ${error.message}`);
+            console.warn(`   Falling back to: ${CareerDomain.SOFTWARE_DEVELOPMENT}`);
+            console.warn(`   ⚠️ Please migrate to resolveCareerDomain() for proper error handling`);
+            return CareerDomain.SOFTWARE_DEVELOPMENT;
+        }
+        throw error;
+    }
+}
+
+/**
+ * @deprecated Use isValidCareer() instead
+ */
+export function isValidPhase1Career(careerName) {
+    return isValidCareer(careerName);
+}
+
+// Legacy mapping object (for reference only)
+export const CAREER_DOMAIN_MAPPING = {
+    "software development": CareerDomain.SOFTWARE_DEVELOPMENT,
+    "data science and ai": CareerDomain.DATA_SCIENCE_AI,
+    "data science & ai": CareerDomain.DATA_SCIENCE_AI,
+    "product management / ux": CareerDomain.PRODUCT_MANAGEMENT_UX,
+    "project management / ux": CareerDomain.PRODUCT_MANAGEMENT_UX,
+};
+
+// Default export for convenience
 export default {
-    CAREER_DOMAIN_MAPPING,
-    mapCareerToDomain,
+    CareerDomain,
+    CareerResolutionError,
+    resolveCareerDomain,
+    mapCareerToDomain, // deprecated
     getAllDomains,
     getDomainDisplayName,
-    isValidPhase1Career,
+    isValidCareer,
+    isValidPhase1Career, // deprecated
     getDomainSubtopics,
-    DOMAIN_SUBTOPICS
+    DOMAIN_SUBTOPICS,
+    CAREER_DOMAIN_MAPPING
 };

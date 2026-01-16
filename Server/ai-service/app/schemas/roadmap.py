@@ -11,6 +11,7 @@ class Resource(BaseModel):
     title: str = Field(description="Resource title")
     platform: str = Field(description="Platform (YouTube, Medium, etc.)")
     url_hint: str = Field(description="Search terms or specific URL hint")
+    url: str = Field(default="", description="Actual URL found via search")
     duration_minutes: int = Field(description="Estimated time in minutes")
 
 

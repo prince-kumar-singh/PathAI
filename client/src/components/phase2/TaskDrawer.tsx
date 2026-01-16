@@ -92,6 +92,39 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, data, o
                             </h3>
                             <div className="space-y-3">
                                 {(() => {
+                                    // Helper to generate search URL as fallback
+                                    const getResourceUrl = (res: any) => {
+                                        // Use real URL if available from DuckDuckGo search
+                                        if (res.url && res.url.startsWith('http')) {
+                                            return res.url;
+                                        }
+
+                                        // Fallback: generate platform-specific search URL
+                                        const searchQuery = encodeURIComponent(
+                                            `${res.title || ''} ${res.url_hint || ''} tutorial`.trim()
+                                        );
+                                        const platform = res.platform?.toLowerCase() || '';
+
+                                        if (platform.includes('youtube')) {
+                                            return `https://www.youtube.com/results?search_query=${searchQuery}`;
+                                        } else if (platform.includes('medium')) {
+                                            return `https://medium.com/search?q=${searchQuery}`;
+                                        } else if (platform.includes('freecodecamp')) {
+                                            return `https://www.freecodecamp.org/news/search/?query=${searchQuery}`;
+                                        } else if (platform.includes('dev.to')) {
+                                            return `https://dev.to/search?q=${searchQuery}`;
+                                        } else if (platform.includes('mdn') || platform.includes('mozilla')) {
+                                            return `https://developer.mozilla.org/en-US/search?q=${searchQuery}`;
+                                        } else if (platform.includes('w3schools')) {
+                                            return `https://www.w3schools.com/search/search_result.asp?query=${searchQuery}`;
+                                        } else if (platform.includes('geeksforgeeks')) {
+                                            return `https://www.geeksforgeeks.org/search/?q=${searchQuery}`;
+                                        }
+
+                                        // Default: Google search
+                                        return `https://www.google.com/search?q=${searchQuery}`;
+                                    };
+
                                     // Collect all resources from all tasks
                                     const allResources = data.tasks?.reduce((acc: any[], task: any) => {
                                         if (task.resources && Array.isArray(task.resources)) {
@@ -104,7 +137,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, data, o
                                         allResources.map((res: any, idx: number) => (
                                             <a
                                                 key={idx}
-                                                href={res.url || res.url_hint || '#'}
+                                                href={getResourceUrl(res)}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group"
@@ -117,7 +150,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, data, o
                                                         {res.title}
                                                     </h4>
                                                     <p className="text-xs text-gray-500 truncate">
-                                                        {res.platform || 'Resource'}
+                                                        {res.platform || 'Resource'} {res.url ? '• Direct link' : '• Search'}
                                                     </p>
                                                 </div>
                                                 <ExternalLink size={16} className="text-gray-400 group-hover:text-indigo-600" />

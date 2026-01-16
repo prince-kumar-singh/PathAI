@@ -72,7 +72,7 @@ const OnboardingFlow: React.FC = () => {
         try {
             // Note: This endpoint is on the Node.js backend (port 8000 default or whatever server runs on)
             // It proxies to FastAPI for some things, but user scores are likely local MongoDB
-            const res = await fetch('http://localhost:8000/api/user-scores', {
+            const res = await fetch('http://localhost:5000/api/user-scores', {
                 credentials: 'include'
             });
 
@@ -96,7 +96,7 @@ const OnboardingFlow: React.FC = () => {
             }
 
             // Get Phase 1 summary
-            const summaryRes = await fetch('http://localhost:8000/api/v1/roadmaps/phase1/summary', {
+            const summaryRes = await fetch('http://localhost:5000/api/v1/roadmaps/phase1/summary', {
                 credentials: 'include'
             });
 
@@ -197,7 +197,7 @@ const OnboardingFlow: React.FC = () => {
             // That fulfills the "connect to the new backend" requirement logically.
             // I will stick with localhost:8000 for the FETCH, but I will make sure the ENDPOINT path is correct.
 
-            const res = await fetch('http://localhost:8000/api/v1/roadmaps/generate', {
+            const res = await fetch('http://localhost:5000/api/v1/roadmaps/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

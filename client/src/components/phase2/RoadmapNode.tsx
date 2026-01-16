@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Circle, Lock, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Lock, ArrowRight } from 'lucide-react';
 
 interface RoadmapNodeProps {
     day: number;
@@ -41,13 +41,20 @@ export const RoadmapNode: React.FC<RoadmapNodeProps> = ({
 
             {/* Icon / Number Bubble */}
             <div className={`
-                relative z-10 flex-shrink-0 w-18 h-18 rounded-full border-4 flex items-center justify-center font-bold text-xl
+                relative z-10 flex-shrink-0 rounded-full border-4 flex flex-col items-center justify-center font-bold
                 transition-all duration-300
-                ${status === 'active' ? 'w-20 h-20 border-indigo-600 bg-white text-indigo-600 shadow-xl' : ''}
+                ${status === 'active' ? 'w-20 h-20 border-indigo-600 bg-white text-indigo-600 shadow-xl' : 'w-[4.5rem] h-[4.5rem]'}
                 ${status === 'completed' ? 'border-green-500 bg-green-500 text-white' : ''}
                 ${status === 'locked' ? 'border-gray-300 bg-gray-100 text-gray-400' : ''}
             `}>
-                {status === 'completed' ? <CheckCircle2 size={32} /> : `Day ${day}`}
+                {status === 'completed' ? (
+                    <CheckCircle2 size={32} />
+                ) : (
+                    <>
+                        <span className="text-[10px] uppercase tracking-wider font-bold opacity-80">Day</span>
+                        <span className="text-2xl leading-none">{day}</span>
+                    </>
+                )}
             </div>
 
             {/* Content Card */}

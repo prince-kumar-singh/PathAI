@@ -36,7 +36,7 @@ const LoginPage = () => {
     setError(null);
 
     try {
-      const res = await fetch("http://localhost:8000/api/v1/auth/google", {
+      const res = await fetch("http://localhost:5000/api/v1/auth/google", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -66,7 +66,7 @@ const LoginPage = () => {
     setError(null);
 
     try {
-      const response = await fetch("http://localhost:8000/api/v1/auth/login", {
+      const response = await fetch("http://localhost:5000/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include", // important for cookies
@@ -206,8 +206,8 @@ const LoginPage = () => {
               type="submit"
               disabled={loading}
               className={`w-full py-3 text-white rounded-lg text-lg font-semibold transition-transform duration-300 ${loading
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-gradient-to-r from-green-500 to-blue-600 hover:scale-[1.03] hover:shadow-lg"
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-gradient-to-r from-green-500 to-blue-600 hover:scale-[1.03] hover:shadow-lg"
                 }`}
             >
               {loading ? "Logging In..." : "Login"}

@@ -166,6 +166,14 @@ Generate the complete 10-day roadmap now in the required JSON format."""
             else:
                 roadmap_data = roadmap if isinstance(roadmap, dict) else dict(roadmap)
             
+            # Enrich resources with real URLs using DuckDuckGo search
+            logger.info("🔎 Finding real URLs for resources...")
+            try:
+                from app.services.resource_url_finder import resource_url_finder
+                roadmap_data = await resource_url_finder.enrich_resources(roadmap_data)
+            except Exception as url_error:
+                logger.warning(f"⚠️ URL enrichment failed (continuing without): {url_error}")
+            
             logger.info(f"✅ Roadmap generated successfully")
             logger.info(f"   Model: {model_name}")
             logger.info(f"   Days: {len(roadmap_data.get('days', []))}")

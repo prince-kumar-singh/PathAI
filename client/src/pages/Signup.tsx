@@ -34,7 +34,7 @@ const SignupPage = () => {
     setError(null);
 
     try {
-      const res = await fetch("http://localhost:8000/api/v1/auth/google", {
+      const res = await fetch("http://localhost:5000/api/v1/auth/google", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -69,7 +69,7 @@ const SignupPage = () => {
     setError(null);
 
     try {
-      const response = await fetch("http://localhost:8000/api/v1/auth/register", {
+      const response = await fetch("http://localhost:5000/api/v1/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

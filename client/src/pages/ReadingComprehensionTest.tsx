@@ -65,7 +65,7 @@ const ReadingComprehensionTest: React.FC = () => {
     const finishTest = async () => {
         setLoading(true);
         try {
-            const res = await fetch("http://localhost:8000/api/predict-career", {
+            const res = await fetch("http://localhost:5000/api/predict-career", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",

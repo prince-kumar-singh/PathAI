@@ -10,6 +10,7 @@ import RiasecResultsPage from "./pages/RiasecResultsPage";
 import ReadingComprehensionTest from "./pages/ReadingComprehensionTest";
 import OnboardingFlow from "./pages/phase2/OnboardingFlow";
 import RoadmapPreview from "./pages/phase2/RoadmapPreview";
+import DailyTaskPlayer from "./pages/phase2/DailyTaskPlayer";
 import { ThemeProvider } from "./context/ThemeContext";
 import Navbar from "./pages/homepage/Navbar";
 
@@ -20,7 +21,8 @@ function AppLayout() {
   // ❌ Routes where Navbar should be hidden
   const hideNavbarRoutes = ["/big-five-test", "/riasec-test", "/reading-comprehension-test", "/onboarding"];
   const isRoadmapPreview = location.pathname.includes("/preview");
-  const hideNavbar = hideNavbarRoutes.includes(location.pathname) || isRoadmapPreview;
+  const isDailyPlayer = location.pathname.includes("/day/");
+  const hideNavbar = hideNavbarRoutes.includes(location.pathname) || isRoadmapPreview || isDailyPlayer;
 
   return (
     <>
@@ -43,6 +45,7 @@ function AppLayout() {
         {/* 🚀 Phase 2 Routes */}
         <Route path="/onboarding" element={<OnboardingFlow />} />
         <Route path="/roadmap/:roadmapId/preview" element={<RoadmapPreview />} />
+        <Route path="/roadmap/:roadmapId/day/:dayNumber" element={<DailyTaskPlayer />} />
       </Routes>
     </>
   );

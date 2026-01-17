@@ -200,6 +200,7 @@ const RoadmapPreview: React.FC = () => {
                 isOpen={isDrawerOpen}
                 onClose={() => setIsDrawerOpen(false)}
                 data={selectedDay}
+                roadmapId={roadmapData._id}
                 onDayComplete={handleDayComplete}
                 isLoading={isLoading}
             />

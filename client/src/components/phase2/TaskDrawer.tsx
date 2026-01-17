@@ -1,15 +1,19 @@
 import React from 'react';
-import { X, ExternalLink, BookOpen, Clock, Youtube, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, ExternalLink, BookOpen, Clock, Youtube, CheckCircle, PlayCircle } from 'lucide-react';
 
 interface TaskDrawerProps {
     isOpen: boolean;
     onClose: () => void;
     data: any;
+    roadmapId?: string;
     onDayComplete?: (dayNumber: number) => Promise<void>;
     isLoading?: boolean;
 }
 
-export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, data, onDayComplete, isLoading = false }) => {
+export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, data, roadmapId, onDayComplete, isLoading = false }) => {
+    const navigate = useNavigate();
+
     if (!data) return null;
 
     return (
@@ -177,7 +181,18 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, data, o
                     </div>
 
                     {/* Activity Footer */}
-                    <div className="p-6 border-t bg-gray-50">
+                    <div className="p-6 border-t bg-gray-50 space-y-3">
+                        {/* View Full Task Button */}
+                        {roadmapId && (
+                            <button
+                                onClick={() => navigate(`/roadmap/${roadmapId}/day/${data.day_number}`)}
+                                className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                            >
+                                <PlayCircle size={20} />
+                                View Full Task Player
+                            </button>
+                        )}
+
                         {data.completed ? (
                             <div className="w-full py-4 bg-green-600 text-white rounded-xl font-bold flex items-center justify-center gap-2">
                                 <CheckCircle size={20} />

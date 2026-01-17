@@ -8,6 +8,7 @@ import { connectDb } from "./config/db.js";
 import connectRedis from "./config/redisClient.js";
 import authRoute from "./route/AuthRoute.js";
 import roadmapRoute from "./route/phase2/RoadmapRoute.js";
+import taskRoute from "./route/phase2/TaskRoute.js";
 import jwt from "jsonwebtoken";
 import User from "./model/userModel.js";
 import Score from "./model/scoreModel.js";
@@ -38,6 +39,7 @@ app.use("/api/v1/auth", authRoute);
 
 // 📌 Phase 2 Routes
 app.use("/api/v1/roadmaps", roadmapRoute);
+app.use("/api/v1/tasks", taskRoute);
 
 // -------------------------------------------------------------------
 // 📌 Big Five API Proxy & Save

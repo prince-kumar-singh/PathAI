@@ -70,7 +70,7 @@ export const RoadmapNode: React.FC<RoadmapNodeProps> = ({
                         <h3 className={`text-xl font-bold mb-1 ${status === 'active' ? 'text-indigo-700' : ''}`}>
                             {title}
                         </h3>
-                        <p className="text-sm opacity-80 line-clamp-2 md:line-clamp-none">
+                        <p className={`text-sm line-clamp-2 md:line-clamp-none ${status === 'active' ? 'text-slate-600' : status === 'completed' ? 'text-green-600' : 'text-gray-500'}`}>
                             {description}
                         </p>
                     </div>

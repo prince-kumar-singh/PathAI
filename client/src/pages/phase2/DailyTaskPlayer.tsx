@@ -15,6 +15,27 @@ import type { Day, Task } from '../../types/phase2/roadmap.types';
 import VideoPlayer from '../../components/phase2/VideoPlayer';
 import ArticleRenderer from '../../components/phase2/ArticleRenderer';
 import CodeEditor from '../../components/phase2/CodeEditor';
+import TextExercise from '../../components/phase2/TextExercise';
+
+/**
+ * Helper to determine if exercise should use text-based UI based on career domain
+ * Writing domains: UX, Product Management, Project Management, etc.
+ */
+const isWritingExercise = (careerDomain?: string): boolean => {
+    if (!careerDomain) return false;
+    const domain = careerDomain.toLowerCase();
+    const writingDomains = [
+        'product_management',
+        'project_management',
+        'ux',
+        'ux_design',
+        'ui_ux',
+        'design',
+        'business',
+        'marketing'
+    ];
+    return writingDomains.some(d => domain.includes(d));
+};
 
 type ResourceTab = 'video' | 'article' | 'exercise';
 
@@ -374,6 +395,21 @@ const DailyTaskPlayer: React.FC = () => {
                                 }
 
                                 if (activeTab === 'exercise' && (selectedTask.type === 'exercise' || selectedTask.type === 'project')) {
+                                    // Route to appropriate component based on career domain
+                                    if (isWritingExercise(roadmapInfo?.career_domain)) {
+                                        return (
+                                            <TextExercise
+                                                key={resourceId}
+                                                title={resource.title}
+                                                description={resource.description || selectedTask.description}
+                                                placeholder="Write your response here. Take your time to think through each point carefully..."
+                                                completed={resource.completed}
+                                                onComplete={() => handleResourceComplete(selectedTask.task_id, resourceId)}
+                                                isLoading={isCompleting}
+                                            />
+                                        );
+                                    }
+                                    // Default to CodeEditor for technical domains
                                     return (
                                         <CodeEditor
                                             key={resourceId}

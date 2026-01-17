@@ -24,6 +24,8 @@ export interface Task {
     type: 'video' | 'article' | 'exercise' | 'project';
     estimated_time_minutes?: number;
     resources: Resource[];
+    /** Optional explicit exercise format for extensibility */
+    exercise_format?: 'code' | 'writing' | 'quiz';
 }
 
 /**

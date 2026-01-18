@@ -37,6 +37,33 @@ const isWritingExercise = (careerDomain?: string): boolean => {
     return writingDomains.some(d => domain.includes(d));
 };
 
+/**
+ * Helper to determine the programming language based on career domain
+ * Python domains: Data Science, AI, ML, Analytics, etc.
+ * JavaScript domains: Web Development, Software Engineering, Frontend, etc.
+ */
+const getProgrammingLanguage = (careerDomain?: string): 'python' | 'javascript' => {
+    if (!careerDomain) return 'javascript';
+    const domain = careerDomain.toLowerCase();
+    const pythonDomains = [
+        'data_science',
+        'data science',
+        'ai',
+        'artificial_intelligence',
+        'artificial intelligence',
+        'machine_learning',
+        'machine learning',
+        'ml',
+        'analytics',
+        'data_analytics',
+        'data analytics',
+        'python',
+        'deep_learning',
+        'deep learning'
+    ];
+    return pythonDomains.some(d => domain.includes(d)) ? 'python' : 'javascript';
+};
+
 type ResourceTab = 'video' | 'article' | 'exercise';
 
 const DailyTaskPlayer: React.FC = () => {
@@ -410,12 +437,14 @@ const DailyTaskPlayer: React.FC = () => {
                                         );
                                     }
                                     // Default to CodeEditor for technical domains
+                                    const codeLanguage = getProgrammingLanguage(roadmapInfo?.career_domain);
                                     return (
                                         <CodeEditor
                                             key={resourceId}
                                             title={resource.title}
                                             description={resource.description || selectedTask.description}
-                                            language="javascript"
+                                            language={codeLanguage}
+                                            allowLanguageSwitch={true}
                                             completed={resource.completed}
                                             onComplete={() => handleResourceComplete(selectedTask.task_id, resourceId)}
                                             isLoading={isCompleting}

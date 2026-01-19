@@ -24,5 +24,8 @@ router.get("/:roadmapId", getRoadmap);
 // Mark a day as complete
 router.patch("/:roadmapId/day/complete", markDayComplete);
 
+// Alias route for backward compatibility
+router.patch("/:roadmapId/days/complete", markDayComplete);
+
 export default router;
 

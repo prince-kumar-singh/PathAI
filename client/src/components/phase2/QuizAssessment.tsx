@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface QuizQuestion {
     index: number;
@@ -117,8 +117,15 @@ const QuizAssessment = ({
     const [showCelebration, setShowCelebration] = useState(false);
     const [isTransitioning, setIsTransitioning] = useState(false);
 
+    // Ref to prevent double-fetch in React Strict Mode or re-renders
+    const hasFetchedRef = useRef(false);
+
     useEffect(() => {
-        fetchQuiz();
+        // Only fetch if we haven't already fetched for this roadmap/day combination
+        if (!hasFetchedRef.current) {
+            hasFetchedRef.current = true;
+            fetchQuiz();
+        }
     }, [roadmapId, dayNumber]);
 
     const fetchQuiz = async () => {
@@ -286,8 +293,8 @@ const QuizAssessment = ({
                         {/* Score ring */}
                         <div
                             className={`relative w-40 h-40 rounded-full flex items-center justify-center ${result.passed
-                                    ? "bg-gradient-to-br from-green-400 to-emerald-600"
-                                    : "bg-gradient-to-br from-red-400 to-rose-600"
+                                ? "bg-gradient-to-br from-green-400 to-emerald-600"
+                                : "bg-gradient-to-br from-red-400 to-rose-600"
                                 } shadow-2xl`}
                         >
                             <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
@@ -335,8 +342,8 @@ const QuizAssessment = ({
                                 <div
                                     key={i}
                                     className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg transform hover:scale-110 transition cursor-default ${a.isCorrect
-                                            ? "bg-gradient-to-br from-green-400 to-green-600 text-white shadow-lg shadow-green-200"
-                                            : "bg-gradient-to-br from-red-400 to-red-600 text-white shadow-lg shadow-red-200"
+                                        ? "bg-gradient-to-br from-green-400 to-green-600 text-white shadow-lg shadow-green-200"
+                                        : "bg-gradient-to-br from-red-400 to-red-600 text-white shadow-lg shadow-red-200"
                                         }`}
                                     title={a.isCorrect ? "Correct!" : `Incorrect - The answer was option ${a.correctAnswer + 1}`}
                                 >
@@ -449,10 +456,10 @@ const QuizAssessment = ({
                                 }, 150);
                             }}
                             className={`w-3 h-3 rounded-full transition-all duration-300 ${idx === currentQuestion
-                                    ? "w-8 bg-gradient-to-r from-blue-500 to-purple-600 shadow-lg"
-                                    : selectedAnswers[idx] !== -1
-                                        ? "bg-green-500"
-                                        : "bg-gray-300 hover:bg-gray-400"
+                                ? "w-8 bg-gradient-to-r from-blue-500 to-purple-600 shadow-lg"
+                                : selectedAnswers[idx] !== -1
+                                    ? "bg-green-500"
+                                    : "bg-gray-300 hover:bg-gray-400"
                                 }`}
                         />
                     ))}
@@ -487,14 +494,14 @@ const QuizAssessment = ({
                                 key={idx}
                                 onClick={() => handleSelectAnswer(idx)}
                                 className={`w-full flex items-center p-5 rounded-2xl border-2 transition-all duration-300 transform hover:scale-[1.02] ${isSelected
-                                        ? "border-blue-500 bg-gradient-to-r from-blue-50 to-purple-50 shadow-lg shadow-blue-100"
-                                        : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                                    ? "border-blue-500 bg-gradient-to-r from-blue-50 to-purple-50 shadow-lg shadow-blue-100"
+                                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                                     }`}
                             >
                                 <div
                                     className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold mr-4 transition-all ${isSelected
-                                            ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg"
-                                            : "bg-gray-100 text-gray-600"
+                                        ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg"
+                                        : "bg-gray-100 text-gray-600"
                                         }`}
                                 >
                                     {optionLetter}
@@ -529,8 +536,8 @@ const QuizAssessment = ({
                     onClick={handlePrevious}
                     disabled={currentQuestion === 0}
                     className={`px-6 py-4 rounded-2xl font-semibold transition-all flex items-center gap-2 ${currentQuestion === 0
-                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-lg transform hover:scale-105"
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-lg transform hover:scale-105"
                         }`}
                 >
                     <span>←</span>
@@ -542,8 +549,8 @@ const QuizAssessment = ({
                         onClick={handleSubmit}
                         disabled={!canSubmit || isSubmitting}
                         className={`px-8 py-4 rounded-2xl font-bold transition-all flex items-center gap-2 ${canSubmit && !isSubmitting
-                                ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:shadow-2xl hover:shadow-green-200 transform hover:scale-105"
-                                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:shadow-2xl hover:shadow-green-200 transform hover:scale-105"
+                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
                             }`}
                     >
                         {isSubmitting ? (
@@ -563,8 +570,8 @@ const QuizAssessment = ({
                         onClick={handleNext}
                         disabled={selectedAnswers[currentQuestion] === -1}
                         className={`px-8 py-4 rounded-2xl font-bold transition-all flex items-center gap-2 ${selectedAnswers[currentQuestion] !== -1
-                                ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:shadow-2xl hover:shadow-blue-200 transform hover:scale-105"
-                                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:shadow-2xl hover:shadow-blue-200 transform hover:scale-105"
+                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
                             }`}
                     >
                         <span>Next</span>

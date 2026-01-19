@@ -3,6 +3,17 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { RoadmapNode } from '../../components/phase2/RoadmapNode';
 import { TaskDrawer } from '../../components/phase2/TaskDrawer';
 
+// Validation error type from backend
+interface ValidationError {
+    error?: string;
+    message?: string;
+    requirements?: {
+        resourcesComplete: { met: boolean; current: number; required: number };
+        quizPassed: { met: boolean; score: number; required: number };
+    };
+    missingCriteria?: string[];
+}
+
 const RoadmapPreview: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -14,6 +25,7 @@ const RoadmapPreview: React.FC = () => {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(!initialRoadmap);
     const [fetchError, setFetchError] = useState<string | null>(null);
+    const [validationError, setValidationError] = useState<ValidationError | null>(null);
 
     // Track quiz count for badge
     const [quizCount, setQuizCount] = useState(0);
@@ -115,28 +127,82 @@ const RoadmapPreview: React.FC = () => {
     }
 
 
-    const handleNodeClick = (dayData: any) => {
+    const handleNodeClick = async (dayData: any) => {
+        // Set initial data to show loading state
         setSelectedDay(dayData);
         setIsDrawerOpen(true);
+        setValidationError(null); // Clear any previous validation error
+
+        // Fetch enriched day data with resource completion status and quiz status
+        try {
+            const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
+            // Fetch day task details (includes resource completion status)
+            const taskResponse = await fetch(
+                `${API_BASE_URL}/api/v1/tasks/${roadmapData._id}/day/${dayData.day_number}`,
+                { credentials: 'include' }
+            );
+
+            // Fetch quiz pass status for this day
+            const quizResponse = await fetch(
+                `${API_BASE_URL}/api/v1/assessments/roadmaps/${roadmapData._id}/days/${dayData.day_number}/results`,
+                { credentials: 'include' }
+            );
+
+            let enrichedDay = { ...dayData };
+
+            if (taskResponse.ok) {
+                const taskData = await taskResponse.json();
+                // Merge the enriched task data (which includes resource.completed status)
+                enrichedDay = {
+                    ...dayData,
+                    tasks: taskData.day.tasks,
+                    progress: taskData.day.progress,
+                    totalResources: taskData.day.totalResources,
+                    completedResources: taskData.day.completedResources
+                };
+            }
+
+            if (quizResponse.ok) {
+                const quizData = await quizResponse.json();
+                // Add quiz pass status to day data
+                enrichedDay.quizPassed = quizData.hasPassed;
+                enrichedDay.bestQuizScore = quizData.bestScore;
+            }
+
+            setSelectedDay(enrichedDay);
+        } catch (error) {
+            console.error('Error fetching day details:', error);
+            // Keep the original day data if fetch fails
+        }
     };
 
     const handleDayComplete = async (dayNumber: number) => {
         try {
             setIsLoading(true);
+            setValidationError(null); // Clear previous error
+
             const response = await fetch(`/api/v1/roadmaps/${roadmapData._id}/day/complete`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 credentials: 'include',
-                body: JSON.stringify({ dayNumber })
+                body: JSON.stringify({ dayNumber, source: 'manual' })
             });
 
+            const result = await response.json();
+
             if (!response.ok) {
-                throw new Error('Failed to mark day as complete');
+                if (result.requirements) {
+                    console.log('📋 Setting validation error:', result);
+                    setValidationError(result);
+                    return;
+                }
+                alert(result.message || 'Failed to mark day as complete. Please try again.');
+                return;
             }
 
-            const result = await response.json();
             setRoadmapData(result.roadmap);
 
             if (selectedDay?.day_number === dayNumber) {
@@ -146,9 +212,9 @@ const RoadmapPreview: React.FC = () => {
 
             setIsDrawerOpen(false);
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error marking day complete:', error);
-            alert('Failed to mark day as complete. Please try again.');
+            alert('Network error. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -238,6 +304,7 @@ const RoadmapPreview: React.FC = () => {
                 roadmapId={roadmapData._id}
                 onDayComplete={handleDayComplete}
                 isLoading={isLoading}
+                validationError={validationError}
             />
         </div>
     );

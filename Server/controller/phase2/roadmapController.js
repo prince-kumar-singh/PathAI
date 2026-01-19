@@ -3,6 +3,8 @@ import fetch from "node-fetch";
 import Score from "../../model/scoreModel.js";
 import { resolveCareerDomain, CareerResolutionError, mapCareerToDomain } from "../../utils/careerDomainMapping.js";
 import Roadmap from "../../model/phase2/roadmapModel.js";
+import ResourceProgress from "../../model/phase2/taskCompletionModel.js";
+import AssessmentResult from "../../model/phase2/assessmentModel.js";
 
 /**
  * Sanitize roadmap data to handle stringified JSON and invalid enums
@@ -334,18 +336,21 @@ export const getPhase1Summary = async (req, res) => {
 
 /**
  * Mark a day as complete
- * Updates the day's completion status and advances to next day
+ * STRICT VALIDATION: Requires BOTH:
+ * 1. 100% resource completion for the day
+ * 2. Passing quiz score (70%+) for the day
  */
 export const markDayComplete = async (req, res) => {
     try {
         const { roadmapId } = req.params;
-        const { dayNumber } = req.body;
+        const { dayNumber, source = 'manual' } = req.body; // source: 'manual' | 'assessment'
         const token = req.cookies.session_token;
 
         // 🔍 Enhanced logging for debugging
         console.log('📍 Mark Day Complete Request:', {
             roadmapId,
             dayNumber,
+            source,
             dayNumberType: typeof dayNumber,
             hasToken: !!token,
             timestamp: new Date().toISOString()
@@ -416,7 +421,93 @@ export const markDayComplete = async (req, res) => {
             return res.status(404).json({ error: "Day not found" });
         }
 
-        console.log('✅ Found day at index:', dayIndex, 'Current completed status:', roadmap.days[dayIndex].completed);
+        const targetDay = roadmap.days[dayIndex];
+        console.log('✅ Found day at index:', dayIndex, 'Current completed status:', targetDay.completed);
+
+        // If already completed, just return success
+        if (targetDay.completed) {
+            console.log('ℹ️ Day already marked as complete');
+            return res.json({
+                success: true,
+                message: "Day already completed",
+                roadmap: roadmap.toObject()
+            });
+        }
+
+        // ===============================================
+        // STRICT VALIDATION: Check completion criteria
+        // ===============================================
+
+        // 1. Check resource completion (100% required)
+        const totalResources = targetDay.tasks.reduce((sum, task) =>
+            sum + (task.resources?.length || 0), 0
+        );
+
+        const completedResources = await ResourceProgress.countDocuments({
+            userId,
+            roadmapId,
+            dayNumber
+        });
+
+        const resourceProgress = totalResources > 0
+            ? Math.round((completedResources / totalResources) * 100)
+            : 100; // If no resources, consider 100%
+
+        console.log('📊 Resource progress:', {
+            completed: completedResources,
+            total: totalResources,
+            percentage: resourceProgress
+        });
+
+        // 2. Check quiz pass status (70%+ required)
+        const passedAssessment = await AssessmentResult.findOne({
+            userId,
+            roadmapId,
+            dayNumber,
+            passed: true
+        });
+
+        const quizPassed = !!passedAssessment;
+        console.log('📝 Quiz status:', {
+            passed: quizPassed,
+            score: passedAssessment?.score || 'N/A'
+        });
+
+        // 3. Validate both criteria met
+        const resourcesComplete = resourceProgress === 100;
+        const canComplete = resourcesComplete && quizPassed;
+
+        if (!canComplete) {
+            const missingCriteria = [];
+            if (!resourcesComplete) {
+                missingCriteria.push(`Complete all resources (${resourceProgress}% done)`);
+            }
+            if (!quizPassed) {
+                missingCriteria.push('Pass the day\'s quiz (70%+ required)');
+            }
+
+            console.log('❌ Completion criteria not met:', missingCriteria);
+
+            return res.status(400).json({
+                error: "Completion criteria not met",
+                message: "Both resource completion and quiz pass are required",
+                requirements: {
+                    resourcesComplete: {
+                        met: resourcesComplete,
+                        current: resourceProgress,
+                        required: 100
+                    },
+                    quizPassed: {
+                        met: quizPassed,
+                        score: passedAssessment?.score || 0,
+                        required: 70
+                    }
+                },
+                missingCriteria
+            });
+        }
+
+        console.log('✅ All completion criteria met!');
 
         // Mark day as complete
         roadmap.days[dayIndex].completed = true;
@@ -448,6 +539,8 @@ export const markDayComplete = async (req, res) => {
 
         return res.json({
             success: true,
+            message: "Day marked as complete",
+            completedBy: source,
             roadmap: roadmap.toObject()
         });
 

@@ -63,7 +63,7 @@ const AssessmentPage = () => {
         if (passed && roadmap) {
             try {
                 await fetch(
-                    `${API_BASE_URL}/api/v1/roadmaps/${roadmapId}/days/complete`,
+                    `${API_BASE_URL}/api/v1/roadmaps/${roadmapId}/day/complete`,
                     {
                         method: "PATCH",
                         headers: { "Content-Type": "application/json" },

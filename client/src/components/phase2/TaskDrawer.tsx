@@ -1,20 +1,61 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, ExternalLink, BookOpen, Clock, Youtube, CheckCircle, PlayCircle } from 'lucide-react';
+import { X, ExternalLink, BookOpen, Clock, Youtube, CheckCircle, PlayCircle, AlertTriangle } from 'lucide-react';
+
+// Matches the backend response from markDayComplete when validation fails
+interface ValidationError {
+    error?: string;
+    message?: string;
+    requirements?: {
+        resourcesComplete: { met: boolean; current: number; required: number };
+        quizPassed: { met: boolean; score: number; required: number };
+    };
+    missingCriteria?: string[];
+}
 
 interface TaskDrawerProps {
     isOpen: boolean;
     onClose: () => void;
     data: any;
     roadmapId?: string;
-    onDayComplete?: (dayNumber: number) => Promise<void>;
+    onDayComplete?: (dayNumber: number) => void;
     isLoading?: boolean;
+    validationError?: ValidationError | null;
 }
 
-export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, data, roadmapId, onDayComplete, isLoading = false }) => {
+export const TaskDrawer: React.FC<TaskDrawerProps> = ({
+    isOpen,
+    onClose,
+    data,
+    roadmapId,
+    onDayComplete,
+    isLoading = false,
+    validationError
+}) => {
     const navigate = useNavigate();
+    const errorRef = React.useRef<HTMLDivElement>(null);
+
+    // Auto-scroll to error when it appears
+    React.useEffect(() => {
+        if (validationError && errorRef.current) {
+            errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [validationError]);
 
     if (!data) return null;
+
+    // Calculate resource completion from task data
+    const totalResources = data.tasks?.reduce((sum: number, task: any) =>
+        sum + (task.resources?.length || 0), 0) || 0;
+    const completedResourceCount = data.tasks?.reduce((sum: number, task: any) =>
+        sum + (task.resources?.filter((r: any) => r.completed)?.length || 0), 0) || 0;
+    const resourceProgress = totalResources > 0
+        ? Math.round((completedResourceCount / totalResources) * 100)
+        : 100;
+
+    const handleDayComplete = () => {
+        onDayComplete?.(data.day_number);
+    };
 
     return (
         <>
@@ -61,6 +102,59 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, data, r
                                 {data.learning_objectives?.[0] || data.goal || data.description || "Master the core concepts defined for today."}
                             </p>
                         </div>
+
+                        {/* 📊 Completion Requirements - Only show if not completed */}
+                        {!data.completed && (
+                            <div>
+                                <h3 className="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
+                                    <span className="bg-purple-100 p-1 rounded">📊</span> Completion Requirements
+                                </h3>
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-4">
+                                    {/* Resource Progress */}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                                                {resourceProgress === 100 ? (
+                                                    <CheckCircle size={16} className="text-green-500" />
+                                                ) : (
+                                                    <BookOpen size={16} className="text-gray-400" />
+                                                )}
+                                                Resources Completed
+                                            </span>
+                                            <span className={`text-sm font-bold ${resourceProgress === 100 ? 'text-green-600' : 'text-gray-600'}`}>
+                                                {completedResourceCount}/{totalResources}
+                                            </span>
+                                        </div>
+                                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div
+                                                className={`h-full transition-all duration-300 ${resourceProgress === 100
+                                                    ? 'bg-green-500'
+                                                    : 'bg-indigo-500'
+                                                    }`}
+                                                style={{ width: `${resourceProgress}%` }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Quiz Status */}
+                                    <div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                                                {data.quizPassed ? (
+                                                    <CheckCircle size={16} className="text-green-500" />
+                                                ) : (
+                                                    <AlertTriangle size={16} className="text-amber-400" />
+                                                )}
+                                                Quiz Passed (70%+ required)
+                                            </span>
+                                            <span className={`text-sm font-bold ${data.quizPassed ? 'text-green-600' : 'text-amber-600'}`}>
+                                                {data.quizPassed ? '✓ Passed' : (data.bestQuizScore ? `Best: ${data.bestQuizScore}%` : 'Not Yet')}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* ✅ Tasks Checklist */}
                         <div>
@@ -144,17 +238,33 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, data, r
                                                 href={getResourceUrl(res)}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group"
+                                                className={`flex items-center gap-4 p-4 rounded-xl border transition-all group ${res.completed
+                                                    ? 'border-green-200 bg-green-50'
+                                                    : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
+                                                    }`}
                                             >
-                                                <div className="w-10 h-10 rounded-lg bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                                                    {res.platform?.toLowerCase().includes('youtube') || res.platform?.toLowerCase().includes('video') ? <Youtube size={20} /> : <BookOpen size={20} />}
+                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform ${res.completed
+                                                    ? 'bg-green-100 text-green-600'
+                                                    : 'bg-red-100 text-red-600'
+                                                    }`}>
+                                                    {res.completed ? (
+                                                        <CheckCircle size={20} />
+                                                    ) : res.platform?.toLowerCase().includes('youtube') || res.platform?.toLowerCase().includes('video') ? (
+                                                        <Youtube size={20} />
+                                                    ) : (
+                                                        <BookOpen size={20} />
+                                                    )}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <h4 className="font-semibold text-gray-800 truncate group-hover:text-indigo-700">
+                                                    <h4 className={`font-semibold truncate ${res.completed
+                                                        ? 'text-green-700'
+                                                        : 'text-gray-800 group-hover:text-indigo-700'
+                                                        }`}>
                                                         {res.title}
                                                     </h4>
                                                     <p className="text-xs text-gray-500 truncate">
                                                         {res.platform || 'Resource'} {res.url ? '• Direct link' : '• Search'}
+                                                        {res.completed && ' • ✓ Completed'}
                                                     </p>
                                                 </div>
                                                 <ExternalLink size={16} className="text-gray-400 group-hover:text-indigo-600" />
@@ -182,6 +292,23 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, data, r
 
                     {/* Activity Footer */}
                     <div className="p-6 border-t bg-gray-50 space-y-3">
+                        {/* Validation Error Message - Made more prominent */}
+                        {validationError && (
+                            <div ref={errorRef} className="bg-red-50 border-2 border-red-300 text-red-800 p-4 rounded-xl text-sm animate-pulse">
+                                <div className="flex items-start gap-2">
+                                    <AlertTriangle size={20} className="flex-shrink-0 mt-0.5 text-red-600" />
+                                    <div>
+                                        <p className="font-bold mb-2 text-red-700">⚠️ Cannot complete day yet!</p>
+                                        <ul className="list-disc list-inside space-y-1">
+                                            {validationError.missingCriteria?.map((criteria, i) => (
+                                                <li key={i} className="font-medium">{criteria}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* View Full Task Button */}
                         {roadmapId && (
                             <button
@@ -200,14 +327,14 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, data, r
                             </div>
                         ) : (
                             <button
-                                onClick={() => onDayComplete?.(data.day_number)}
+                                onClick={handleDayComplete}
                                 disabled={isLoading || !onDayComplete}
                                 className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isLoading ? (
                                     <>
                                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                        Saving...
+                                        Checking...
                                     </>
                                 ) : (
                                     'Mark Day as Complete ✓'

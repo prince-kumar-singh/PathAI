@@ -402,10 +402,10 @@ const Dashboard: React.FC = () => {
                                                         {roadmap.career_domain?.replace(/_/g, ' ')} Path
                                                     </h3>
                                                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${roadmap.status === 'completed'
-                                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                                                            : roadmap.status === 'in_progress'
-                                                                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
-                                                                : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                                        : roadmap.status === 'in_progress'
+                                                            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+                                                            : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
                                                         }`}>
                                                         {roadmap.status === 'completed' ? '✓ Completed' :
                                                             roadmap.status === 'in_progress' ? '▶ In Progress' : 'Not Started'}

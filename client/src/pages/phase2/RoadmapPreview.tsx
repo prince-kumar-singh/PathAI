@@ -13,8 +13,10 @@ const RoadmapPreview: React.FC = () => {
     const [selectedDay, setSelectedDay] = useState<any>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(!initialRoadmap);
-    const [isSaved, setIsSaved] = useState(true); // Roadmaps are auto-saved
     const [fetchError, setFetchError] = useState<string | null>(null);
+
+    // Track quiz count for badge
+    const [quizCount, setQuizCount] = useState(0);
 
     // Fetch roadmap from API if not available in location.state
     useEffect(() => {
@@ -44,6 +46,31 @@ const RoadmapPreview: React.FC = () => {
             fetchRoadmap();
         }
     }, [roadmapId, roadmapData]);
+
+    // Fetch quiz count for this roadmap
+    useEffect(() => {
+        if (roadmapId) {
+            fetchQuizCount();
+        }
+    }, [roadmapId]);
+
+    const fetchQuizCount = async () => {
+        try {
+            const response = await fetch(`/api/v1/assessments/history`, {
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const count = data.assessments?.filter(
+                    (a: any) => a.roadmapId === roadmapId
+                ).length || 0;
+                setQuizCount(count);
+            }
+        } catch (error) {
+            console.error('Error fetching quiz count:', error);
+        }
+    };
 
     // Loading state
     if (isLoading) {
@@ -110,17 +137,13 @@ const RoadmapPreview: React.FC = () => {
             }
 
             const result = await response.json();
-
-            // Update local state with the new roadmap data
             setRoadmapData(result.roadmap);
 
-            // Update selected day if it's the one we just completed
             if (selectedDay?.day_number === dayNumber) {
                 const updatedDay = result.roadmap.days.find((d: any) => d.day_number === dayNumber);
                 setSelectedDay(updatedDay);
             }
 
-            // Close drawer after completing
             setIsDrawerOpen(false);
 
         } catch (error) {
@@ -143,6 +166,19 @@ const RoadmapPreview: React.FC = () => {
                         </h1>
                     </div>
                     <div className="flex gap-3 items-center">
+                        {/* Quiz History Button - navigates to full page */}
+                        <button
+                            onClick={() => navigate(`/roadmap/${roadmapId}/quiz-history`)}
+                            className="px-4 py-2 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-lg font-medium text-sm transition flex items-center gap-2"
+                        >
+                            <span>📊</span>
+                            Quiz History
+                            {quizCount > 0 && (
+                                <span className="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
+                                    {quizCount}
+                                </span>
+                            )}
+                        </button>
                         <button
                             onClick={() => navigate('/dashboard')}
                             className="text-sm font-medium text-gray-500 hover:text-gray-900"
@@ -169,7 +205,6 @@ const RoadmapPreview: React.FC = () => {
 
                 <div className="space-y-8 relative pb-24">
                     {roadmapData.days?.map((day: any, index: number) => {
-                        // Determine status based on completion and current day
                         let status: 'completed' | 'active' | 'locked' = 'locked';
 
                         if (day.completed) {
@@ -177,7 +212,7 @@ const RoadmapPreview: React.FC = () => {
                         } else if (day.day_number === roadmapData.current_day) {
                             status = 'active';
                         } else if (day.day_number < roadmapData.current_day) {
-                            status = 'active'; // Allow access to previous days even if not marked complete
+                            status = 'active';
                         }
 
                         return (

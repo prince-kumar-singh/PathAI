@@ -247,6 +247,20 @@ const DailyTaskPlayer: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Take Assessment Button */}
+                <div className="px-6 py-4 border-b border-gray-100">
+                    <button
+                        onClick={() => navigate(`/roadmap/${roadmapId}/day/${dayNumber}/assessment`)}
+                        className="w-full py-3 px-4 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-green-200 transition-all flex items-center justify-center gap-2"
+                    >
+                        <span>📝</span>
+                        <span>Take Assessment</span>
+                    </button>
+                    <p className="text-xs text-gray-500 text-center mt-2">
+                        Pass the quiz to unlock the next day
+                    </p>
+                </div>
+
                 {/* Tasks List */}
                 <div className="flex-1 overflow-y-auto p-4">
                     <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 px-2">

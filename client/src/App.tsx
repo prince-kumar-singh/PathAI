@@ -11,6 +11,9 @@ import ReadingComprehensionTest from "./pages/ReadingComprehensionTest";
 import OnboardingFlow from "./pages/phase2/OnboardingFlow";
 import RoadmapPreview from "./pages/phase2/RoadmapPreview";
 import DailyTaskPlayer from "./pages/phase2/DailyTaskPlayer";
+import AssessmentPage from "./pages/phase2/AssessmentPage";
+import AssessmentHistoryPage from "./pages/phase2/AssessmentHistoryPage";
+import RoadmapQuizHistoryPage from "./pages/phase2/RoadmapQuizHistoryPage";
 import { ThemeProvider } from "./context/ThemeContext";
 import Navbar from "./pages/homepage/Navbar";
 
@@ -22,7 +25,9 @@ function AppLayout() {
   const hideNavbarRoutes = ["/big-five-test", "/riasec-test", "/reading-comprehension-test", "/onboarding"];
   const isRoadmapPreview = location.pathname.includes("/preview");
   const isDailyPlayer = location.pathname.includes("/day/");
-  const hideNavbar = hideNavbarRoutes.includes(location.pathname) || isRoadmapPreview || isDailyPlayer;
+  const isAssessment = location.pathname.includes("/assessment");
+  const isQuizHistory = location.pathname.includes("/quiz-history");
+  const hideNavbar = hideNavbarRoutes.includes(location.pathname) || isRoadmapPreview || isDailyPlayer || isAssessment || isQuizHistory;
 
   return (
     <>
@@ -46,6 +51,9 @@ function AppLayout() {
         <Route path="/onboarding" element={<OnboardingFlow />} />
         <Route path="/roadmap/:roadmapId/preview" element={<RoadmapPreview />} />
         <Route path="/roadmap/:roadmapId/day/:dayNumber" element={<DailyTaskPlayer />} />
+        <Route path="/roadmap/:roadmapId/day/:dayNumber/assessment" element={<AssessmentPage />} />
+        <Route path="/roadmap/:roadmapId/quiz-history" element={<RoadmapQuizHistoryPage />} />
+        <Route path="/assessment-history" element={<AssessmentHistoryPage />} />
       </Routes>
     </>
   );
